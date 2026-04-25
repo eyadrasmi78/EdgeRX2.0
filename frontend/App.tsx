@@ -24,6 +24,11 @@ export function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Notification bell state — opens a dropdown listing in-app + server notifications
+  const [isBellOpen, setIsBellOpen] = useState(false);
+  const [serverNotifications, setServerNotifications] = useState<any[]>([]);
+  const bellRef = React.useRef<HTMLDivElement>(null);
+
   // Navigation State
   const [activeView, setActiveView] = useState<string>('home');
 
@@ -69,8 +74,69 @@ export function App() {
     setProducts([]);
     setOrders([]);
     setIsCartOpen(false);
+    setIsBellOpen(false);
+    setServerNotifications([]);
     setActiveView('home');
   };
+
+  // Open / close the notification bell dropdown. On open, fetch the latest from /api/notifications.
+  const toggleBell = async () => {
+    const next = !isBellOpen;
+    setIsBellOpen(next);
+    if (next) {
+      try {
+        await DataService.refreshNotifications();
+        setServerNotifications(DataService.getNotifications());
+      } catch {/* non-fatal */}
+    }
+  };
+
+  // Click-outside to close bell
+  useEffect(() => {
+    if (!isBellOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setIsBellOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isBellOpen]);
+
+  // Background poll: refresh notifications every 15s while logged in so new ones show up
+  useEffect(() => {
+    if (!user) return;
+    const tick = async () => {
+      try {
+        await DataService.refreshNotifications();
+        setServerNotifications(DataService.getNotifications());
+      } catch {/* ignore */}
+    };
+    tick();
+    const id = setInterval(tick, 15000);
+    return () => clearInterval(id);
+  }, [user]);
+
+  const markNotificationRead = async (id: string) => {
+    try {
+      const res = await fetch(`/api/notifications/${id}/read`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-XSRF-TOKEN': decodeURIComponent(
+            (document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN=')) || '').slice('XSRF-TOKEN='.length)
+          ),
+        },
+      });
+      if (res.ok) {
+        setServerNotifications(prev => prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n));
+      }
+    } catch {/* ignore */}
+  };
+
+  const unreadCount = serverNotifications.filter(n => !n.readAt).length;
 
   const handleAddToCart = (product: Product, quantity: number) => {
     setCart(prev => {
@@ -381,11 +447,8 @@ export function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-8">
-              <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => setActiveView('home')}>
-                <div className="bg-teal-600 p-1.5 rounded-lg">
-                    <Activity className="h-6 w-6 text-white" />
-                </div>
-                <span className="text-xl font-black tracking-tight text-slate-900">Edge<span className="text-teal-600">Rx</span></span>
+              <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => setActiveView('home')}>
+                <img src="/logo-wide.png" alt="EdgeRx" className="h-9 w-auto" />
               </div>
               <div className="hidden md:flex space-x-1">
                 {getNavItems().map(item => {
@@ -412,10 +475,80 @@ export function App() {
                   {language === 'en' ? 'AR' : 'EN'}
               </button>
               
-              <div className="relative">
-                  <Bell className="h-6 w-6 text-gray-400 hover:text-gray-600 cursor-pointer" />
-                  {notifications.length > 0 && (
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              <div className="relative" ref={bellRef}>
+                  <button
+                    type="button"
+                    onClick={toggleBell}
+                    className="p-2 text-gray-400 hover:text-teal-600 transition-colors relative"
+                    aria-label={t('notifications_title')}
+                    aria-expanded={isBellOpen}
+                  >
+                    <Bell className="h-6 w-6" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold leading-none text-white bg-red-500 rounded-full px-1 border-2 border-white">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {isBellOpen && (
+                    <div className="absolute right-0 rtl:right-auto rtl:left-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-gray-900">{t('notifications_title')}</h3>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await fetch('/api/notifications/read-all', {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: {
+                                  'Accept': 'application/json',
+                                  'X-Requested-With': 'XMLHttpRequest',
+                                  'X-XSRF-TOKEN': decodeURIComponent(
+                                    (document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN=')) || '').slice('XSRF-TOKEN='.length)
+                                  ),
+                                },
+                              }).catch(() => {});
+                              setServerNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
+                            }}
+                            className="text-[11px] font-medium text-teal-600 hover:text-teal-700"
+                          >
+                            {t('mark_all_read')}
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                        {serverNotifications.length === 0 ? (
+                          <div className="px-4 py-12 text-center text-sm text-gray-400">
+                            <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                            {t('no_notifications')}
+                          </div>
+                        ) : (
+                          serverNotifications.map((n) => {
+                            const dot = n.type === 'success' ? 'bg-green-500'
+                              : n.type === 'warning' ? 'bg-yellow-500'
+                              : 'bg-blue-500';
+                            return (
+                              <button
+                                key={n.id}
+                                type="button"
+                                onClick={() => !n.readAt && markNotificationRead(n.id)}
+                                className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors flex items-start gap-3 ${n.readAt ? 'opacity-60' : ''}`}
+                              >
+                                <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${dot}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 leading-snug">{n.message}</p>
+                                  <p className="text-[10px] text-gray-400 mt-1">
+                                    {n.timestamp ? new Date(n.timestamp).toLocaleString() : ''}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
                   )}
               </div>
 

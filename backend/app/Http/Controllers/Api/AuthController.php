@@ -67,11 +67,17 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|max:255|unique:users,email',
+            // Email must be unique across BOTH users and team_members so login lookups don't collide.
+            'email' => 'required|string|max:255|unique:users,email|unique:team_members,email',
             'password' => 'required|string|min:4',
             'phone' => 'nullable|string|max:64',
             'role' => 'required|in:CUSTOMER,SUPPLIER,FOREIGN_SUPPLIER',
             'companyDetails' => 'nullable|array',
+            // Cap base64 data-URL fields at ~7.5MB raw so a malicious upload can't OOM the API
+            'companyDetails.tradeLicenseDataUrl' => 'nullable|string|max:10000000',
+            'companyDetails.authorizedSignatoryDataUrl' => 'nullable|string|max:10000000',
+            'companyDetails.isoCertificateDataUrl' => 'nullable|string|max:10000000',
+            'companyDetails.labTestDataUrl' => 'nullable|string|max:10000000',
         ]);
 
         $user = User::create([

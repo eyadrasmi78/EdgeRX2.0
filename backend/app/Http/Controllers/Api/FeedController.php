@@ -104,9 +104,10 @@ class FeedController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'mediaType' => 'nullable|in:image,video,pdf',
-            'mediaUrl' => 'nullable|string',
-            'link' => 'nullable|string',
-            'attachmentName' => 'nullable|string',
+            // Cap base64 data URLs at ~7.5MB to prevent memory blow-ups
+            'mediaUrl' => 'nullable|string|max:10000000',
+            'link' => 'nullable|string|max:2048',
+            'attachmentName' => 'nullable|string|max:255',
         ]);
         $item = FeedItem::create([
             'id' => (string) Str::uuid(),

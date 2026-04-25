@@ -1,21 +1,17 @@
-
 {
   "short_name": "EdgeRx",
-  "name": "EdgeRx B2B Platform",
+  "name": "EdgeRx — Seamless Supply. Uninterrupted Care.",
+  "description": "B2B medical supply chain platform connecting hospitals, suppliers, and global manufacturers.",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3063/3063822.png",
+      "src": "/logo.png",
       "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/3063/3063822.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "1080x702",
+      "purpose": "any"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
-  "theme_color": "#0284c7",
+  "theme_color": "#0d9488",
   "background_color": "#ffffff"
 }

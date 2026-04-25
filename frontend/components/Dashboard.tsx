@@ -54,11 +54,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUser, orders, produ
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">{t('welcome')}, {currentUser.name}</h1>
-            <p className="text-gray-500 font-medium">Performance summary and real-time market updates.</p>
+            <p className="text-gray-500 font-medium">{t('performance_summary')}</p>
           </div>
           <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-gray-100 shadow-sm">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Live Network</span>
+              <span className="text-xs font-black text-gray-600 uppercase tracking-widest">{t('live_network')}</span>
           </div>
       </div>
 
@@ -69,12 +69,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUser, orders, produ
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><DollarSign size={80} className="text-teal-600" /></div>
                 <h3 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-1">{isCustomer ? t('total_spend') : t('total_revenue')}</h3>
                 <p className="text-2xl font-black text-gray-900">${metrics.financialTotal.toLocaleString()}</p>
-                <div className="mt-4 flex items-center gap-1.5 text-green-600 font-bold text-[10px] bg-green-50 w-fit px-2 py-0.5 rounded-full"><TrendingUp size={12}/> Global performance</div>
+                <div className="mt-4 flex items-center gap-1.5 text-green-600 font-bold text-[10px] bg-green-50 w-fit px-2 py-0.5 rounded-full"><TrendingUp size={12}/> {t('global_performance')}</div>
             </div>
 
             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl shadow-slate-200/50 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><CheckCircle size={80} className="text-blue-600" /></div>
-                <h3 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-1">{isCustomer ? 'Confirmation Rate' : 'Fulfillment Rate'}</h3>
+                <h3 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-1">{isCustomer ? t('confirmation_rate') : t('fulfillment_rate')}</h3>
                 <p className="text-2xl font-black text-gray-900">{metrics.successRate.toFixed(1)}%</p>
                 <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${metrics.successRate}%` }}></div>
@@ -83,16 +83,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUser, orders, produ
 
             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl shadow-slate-200/50 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><Clock size={80} className="text-orange-600" /></div>
-                <h3 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-1">Active Requests</h3>
+                <h3 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-1">{t('active_requests')}</h3>
                 <p className="text-2xl font-black text-gray-900">{metrics.pending}</p>
-                <p className="mt-4 text-[10px] text-gray-500 flex items-center gap-1 font-bold uppercase"><Activity size={12}/> Needs attention</p>
+                <p className="mt-4 text-[10px] text-gray-500 flex items-center gap-1 font-bold uppercase"><Activity size={12}/> {t('needs_attention')}</p>
             </div>
 
             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl shadow-slate-200/50 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><RefreshCw size={80} className="text-pink-600" /></div>
-                <h3 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-1">Returns</h3>
+                <h3 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-1">{t('returns')}</h3>
                 <p className="text-2xl font-black text-pink-600">{metrics.returns}</p>
-                <p className="mt-4 text-[10px] text-pink-500 flex items-center gap-1 font-bold uppercase"><AlertCircle size={12}/> Issue tracking</p>
+                <p className="mt-4 text-[10px] text-pink-500 flex items-center gap-1 font-bold uppercase"><AlertCircle size={12}/> {t('issue_tracking')}</p>
             </div>
           </div>
       )}
@@ -103,7 +103,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUser, orders, produ
               <div className="h-10 w-1.5 bg-teal-600 rounded-full"></div>
               <div>
                 <h3 className="text-2xl font-black text-gray-900 tracking-tight">{t('market_feed')}</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Network Announcements & Updates</p>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{t('network_announcements')}</p>
               </div>
           </div>
           <NewsFeed currentUser={currentUser} />
