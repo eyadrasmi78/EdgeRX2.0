@@ -35,5 +35,7 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-di
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 EXPOSE 8080
+COPY docker-entrypoint.sh /usr/local/bin/edgerx-entrypoint.sh
+RUN chmod +x /usr/local/bin/edgerx-entrypoint.sh
 # DO App Platform sets $PORT; default 8080
-CMD ["sh", "-c", "php artisan migrate --force && php artisan storage:link || true && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
+CMD ["sh", "-c", "/usr/local/bin/edgerx-entrypoint.sh && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
