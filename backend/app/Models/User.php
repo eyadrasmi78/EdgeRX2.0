@@ -2,42 +2,27 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'id', 'name', 'email', 'password', 'phone', 'role', 'status',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password', 'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -45,4 +30,51 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $u) {
+            if (empty($u->id)) {
+                $u->id = (string) Str::uuid();
+            }
+        });
+    }
+
+    public function companyDetails()
+    {
+        return $this->hasOne(CompanyDetails::class, 'user_id');
+    }
+
+    public function teamMembers()
+    {
+        return $this->hasMany(TeamMember::class, 'parent_user_id');
+    }
+
+    public function products()
+    {
+        return $this->hasMany(Product::class, 'supplier_id');
+    }
+
+    public function customerOrders()
+    {
+        return $this->hasMany(Order::class, 'customer_id');
+    }
+
+    public function supplierOrders()
+    {
+        return $this->hasMany(Order::class, 'supplier_id');
+    }
+
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    /* ---------- role helpers ---------- */
+    public function isAdmin(): bool { return $this->role === 'ADMIN'; }
+    public function isCustomer(): bool { return $this->role === 'CUSTOMER'; }
+    public function isSupplier(): bool { return in_array($this->role, ['SUPPLIER', 'FOREIGN_SUPPLIER'], true); }
+    public function isLocalSupplier(): bool { return $this->role === 'SUPPLIER'; }
+    public function isForeignSupplier(): bool { return $this->role === 'FOREIGN_SUPPLIER'; }
+    public function isApproved(): bool { return $this->status === 'APPROVED'; }
 }

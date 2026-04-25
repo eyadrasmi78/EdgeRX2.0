@@ -1,0 +1,29 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('team_members', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('parent_user_id');
+            $table->foreign('parent_user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->string('name');
+            $table->string('email')->index();
+            $table->string('phone')->nullable();
+            $table->string('job_title')->nullable();
+            $table->string('password'); // bcrypt-hashed
+            $table->json('permissions')->nullable(); // array of: VIEW_PRODUCTS,MANAGE_PRODUCTS,VIEW_ORDERS,MANAGE_ORDERS,ADMIN_ACCESS,MANAGE_CHATS
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('team_members');
+    }
+};
