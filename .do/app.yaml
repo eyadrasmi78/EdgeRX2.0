@@ -38,11 +38,12 @@ services:
       - { key: APP_KEY,                     scope: RUN_AND_BUILD_TIME, type: SECRET }
       # ── DB (managed Postgres ${db.*}) ──
       - { key: DB_CONNECTION,               value: "pgsql",                             scope: RUN_AND_BUILD_TIME }
-      - { key: DB_HOST,                     value: "${db.HOSTNAME}",                    scope: RUN_AND_BUILD_TIME }
-      - { key: DB_PORT,                     value: "${db.PORT}",                        scope: RUN_AND_BUILD_TIME }
-      - { key: DB_DATABASE,                 value: "${db.DATABASE}",                    scope: RUN_AND_BUILD_TIME }
-      - { key: DB_USERNAME,                 value: "${db.USERNAME}",                    scope: RUN_AND_BUILD_TIME }
-      - { key: DB_PASSWORD,                 value: "${db.PASSWORD}",                    scope: RUN_AND_BUILD_TIME, type: SECRET }
+      - { key: DB_HOST,                     value: "edgerx-pg-do-user-33183597-0.k.db.ondigitalocean.com",                    scope: RUN_AND_BUILD_TIME }
+      - { key: DB_PORT,                     value: "25060",                        scope: RUN_AND_BUILD_TIME }
+      - { key: DB_DATABASE,                 value: "edgerx",                    scope: RUN_AND_BUILD_TIME }
+      - { key: DB_USERNAME,                 value: "edgerx_user",                    scope: RUN_AND_BUILD_TIME }
+      - { key: DB_PASSWORD, scope: RUN_AND_BUILD_TIME, type: SECRET }
+      - { key: DB_SSLMODE,                  value: "require",                           scope: RUN_AND_BUILD_TIME }
       # ── Sessions ──
       - { key: SESSION_DRIVER,              value: "database",                          scope: RUN_TIME }
       - { key: SESSION_LIFETIME,            value: "120",                               scope: RUN_TIME }
@@ -112,11 +113,11 @@ workers:
       - { key: APP_ENV,                     value: "production",                        scope: RUN_TIME }
       - { key: APP_KEY,                     scope: RUN_AND_BUILD_TIME, type: SECRET }
       - { key: DB_CONNECTION,               value: "pgsql",                             scope: RUN_TIME }
-      - { key: DB_HOST,                     value: "${db.HOSTNAME}",                    scope: RUN_TIME }
-      - { key: DB_PORT,                     value: "${db.PORT}",                        scope: RUN_TIME }
-      - { key: DB_DATABASE,                 value: "${db.DATABASE}",                    scope: RUN_TIME }
-      - { key: DB_USERNAME,                 value: "${db.USERNAME}",                    scope: RUN_TIME }
-      - { key: DB_PASSWORD,                 value: "${db.PASSWORD}",                    scope: RUN_TIME, type: SECRET }
+      - { key: DB_HOST,                     value: "edgerx-pg-do-user-33183597-0.k.db.ondigitalocean.com",                    scope: RUN_TIME }
+      - { key: DB_PORT,                     value: "25060",                        scope: RUN_TIME }
+      - { key: DB_DATABASE,                 value: "edgerx",                    scope: RUN_TIME }
+      - { key: DB_USERNAME,                 value: "edgerx_user",                    scope: RUN_TIME }
+      - { key: DB_PASSWORD, scope: RUN_TIME, type: SECRET }
       - { key: QUEUE_CONNECTION,            value: "database",                          scope: RUN_TIME }
       - { key: CACHE_STORE,                 value: "database",                          scope: RUN_TIME }
       - { key: MAIL_MAILER,                 value: "smtp",                              scope: RUN_TIME }
@@ -129,14 +130,6 @@ workers:
       - { key: MAIL_FROM_NAME,              value: "EdgeRX",                            scope: RUN_TIME }
       - { key: LOG_CHANNEL,                 value: "stderr",                            scope: RUN_TIME }
 
-# ─────────── Managed Postgres ───────────
-databases:
-  - name: db
-    engine: PG
-    version: "16"
-    size: db-s-dev-database
-    num_nodes: 1
-    production: false  # smallest tier for the demo
 
 # ─────────── Custom domain ───────────
 domains:
