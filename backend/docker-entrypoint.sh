@@ -55,9 +55,18 @@ echo "storage:link..."
 php artisan storage:link || true
 
 echo ""
-echo "config:cache + route:cache + view:cache for prod..."
+echo "Clearing any stale caches..."
+php artisan optimize:clear || true
+
+echo ""
+echo "Verifying api routes are registered..."
+php artisan route:list --path=api 2>&1 | head -25
+
+echo ""
+echo "Re-caching for prod..."
 php artisan config:cache || true
-php artisan route:cache || true
+# Skip route:cache because routes/api.php uses inline closures (Route::get('/healthz', fn()))
+# which Laravel forbids in route:cache. The non-cached route resolution is plenty fast for the demo.
 php artisan view:cache || true
 
 echo ""
