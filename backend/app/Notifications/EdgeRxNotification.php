@@ -48,11 +48,13 @@ class EdgeRxNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
+        // Keep title and message as separate fields — the frontend renders them
+        // distinctly (bold title + body text). Composing them here was redundant.
         return [
             'type' => $this->mapType(),
             'kind' => $this->kind,
             'title' => $this->title,
-            'message' => $this->title . ' — ' . $this->message,
+            'message' => $this->message,
             'actionUrl' => $this->actionUrl,
             'meta' => $this->data,
         ];

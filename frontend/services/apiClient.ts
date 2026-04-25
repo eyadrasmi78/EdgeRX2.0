@@ -29,20 +29,73 @@ let _chats: ChatRoom[] = [];
 let _notifications: InAppNotification[] = [];
 let _currentUser: User | null = null;
 
-/* ────────────────────────────── helpers ────────────────────────────── */
-async function refreshUsers(): Promise<void> {
-  try { _users = await api.get<User[]>('/users'); } catch { /* non-admin: stay empty */ }
+/* ── race-token guards (S3) ──────────────────────────────────────────
+ * Each cache slice has a monotonic generation counter. When two mutations
+ * race, the slower one's response is dropped on assignment if a newer
+ * generation has already been assigned. Prevents stale-data flicker.
+ */
+const _gen: Record<string, number> = {
+  users: 0, products: 0, orders: 0, feed: 0, partnerships: 0, notifications: 0,
+};
+function newGen(slice: string): number {
+  return ++_gen[slice];
 }
-async function refreshProducts(): Promise<void> { _products = await api.get<Product[]>('/products'); }
-async function refreshOrders(): Promise<void>   { _orders   = await api.get<Order[]>('/orders'); }
-async function refreshFeed(): Promise<void>     { _feed     = await api.get<FeedItem[]>('/feed'); }
+function isFresh(slice: string, gen: number): boolean {
+  return gen === _gen[slice];
+}
+
+/* ────────────────────────────── helpers ────────────────────────────── */
+/** Fail-soft cache loaders with visibility — every failed slice logs once so dev/QA can see it. */
+function logSliceError(slice: string, e: unknown) {
+  // eslint-disable-next-line no-console
+  console.warn(`[apiClient] ${slice} cache failed to refresh:`, e);
+}
+async function refreshUsers(): Promise<void> {
+  const g = newGen('users');
+  try { const data = await api.get<User[]>('/users'); if (isFresh('users', g)) _users = data; }
+  catch (e) { logSliceError('users', e); /* non-admin etc — stay with what we had */ }
+}
+async function refreshProducts(): Promise<void> {
+  const g = newGen('products');
+  try { const data = await api.get<Product[]>('/products'); if (isFresh('products', g)) _products = data; }
+  catch (e) { logSliceError('products', e); }
+}
+async function refreshOrders(): Promise<void> {
+  const g = newGen('orders');
+  try { const data = await api.get<Order[]>('/orders'); if (isFresh('orders', g)) _orders = data; }
+  catch (e) { logSliceError('orders', e); }
+}
+async function refreshFeed(): Promise<void> {
+  const g = newGen('feed');
+  try { const data = await api.get<FeedItem[]>('/feed'); if (isFresh('feed', g)) _feed = data; }
+  catch (e) { logSliceError('feed', e); }
+}
 async function refreshPartnerships(): Promise<void> {
-  try { _partnerships = await api.get<PartnershipRequest[]>('/partnerships'); }
-  catch { _partnerships = []; }
+  const g = newGen('partnerships');
+  try { const data = await api.get<PartnershipRequest[]>('/partnerships'); if (isFresh('partnerships', g)) _partnerships = data; }
+  catch (e) { logSliceError('partnerships', e); _partnerships = []; }
 }
 async function refreshNotifications(): Promise<void> {
-  try { _notifications = await api.get<InAppNotification[]>('/notifications'); }
-  catch { _notifications = []; }
+  const g = newGen('notifications');
+  try { const data = await api.get<InAppNotification[]>('/notifications'); if (isFresh('notifications', g)) _notifications = data; }
+  catch (e) { logSliceError('notifications', e); _notifications = []; }
+}
+async function refreshChats(orderIds: string[]): Promise<void> {
+  if (!orderIds.length) return;
+  // Fan out in parallel; ignore individual failures so one bad room doesn't blank the whole list
+  const results = await Promise.allSettled(
+    orderIds.map(async (id) => {
+      const msgs = await api.get<ChatMessage[]>(`/chats/${id}/messages`);
+      return { orderId: id, messages: msgs };
+    }),
+  );
+  for (const r of results) {
+    if (r.status === 'fulfilled') {
+      const idx = _chats.findIndex(c => c.orderId === r.value.orderId);
+      if (idx > -1) _chats[idx] = r.value;
+      else _chats.push(r.value);
+    }
+  }
 }
 
 function clearAll() {
@@ -70,6 +123,10 @@ export const DataService = {
       ]);
       // Always include the current user in the users cache for non-admin views
       if (!_users.find(u => u.id === session.user!.id)) _users = [session.user, ..._users];
+      // Pre-hydrate chat caches for any orders the user can see, so opening
+      // ChatModal doesn't show an empty state on first paint.
+      const orderIds = _orders.map(o => o.id).slice(0, 20); // cap to keep boot fast
+      await refreshChats(orderIds);
     }
     return session;
   },
@@ -200,6 +257,24 @@ export const DataService = {
   updateProduct: async (product: Product): Promise<void> => {
     await api.patch(`/products/${product.id}`, product);
     await refreshProducts();
+  },
+
+  /* ── CART ───────────────────────────────────────────── */
+  // Server-persisted cart so refreshing the page doesn't drop it (N5).
+  loadCart: async (): Promise<{ product: Product; quantity: number }[]> => {
+    try { return await api.get('/cart'); } catch { return []; }
+  },
+  saveCart: async (items: { productId: string; quantity: number }[]): Promise<void> => {
+    if (items.length === 0) {
+      try { await api.del('/cart'); } catch {/* ignore */}
+      return;
+    }
+    try { await api.put('/cart', { items }); } catch (e) { logSliceError('cart', e); }
+  },
+  checkoutCart: async (): Promise<{ orders: Order[] }> => {
+    const r = await api.post<{ orders: Order[] }>('/cart/checkout');
+    await refreshOrders();
+    return r;
   },
 
   /* ── ORDERS ─────────────────────────────────────────── */

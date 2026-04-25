@@ -428,7 +428,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.phone}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {member.permissions.map(p => (
+                                                    {(member.permissions ?? []).map(p => (
                                                         <span key={p} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded border border-gray-200">{p.replace('_', ' ')}</span>
                                                     ))}
                                                 </div>

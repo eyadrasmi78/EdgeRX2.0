@@ -194,12 +194,13 @@ export interface OrderHistoryLog {
 }
 
 export interface Order {
-  id: string; 
-  orderNumber: string; 
+  id: string;
+  orderNumber: string;
   productId: string;
   productName: string;
   customerId: string;
   customerName: string;
+  supplierId?: string;
   supplierName: string;
   quantity: number;
   bonusQuantity?: number; 

@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Models\CompanyDetails;
 use App\Models\TeamMember;
+use App\Support\CompanyDetailsPayload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -15,12 +18,9 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $data = $request->validate([
-            'email' => 'required|string',  // not 'email' rule — admin/admin demo
-            'password' => 'required|string',
-        ]);
+        $data = $request->validated();
 
         // First try a regular user
         $user = User::where('email', $data['email'])->first();
@@ -63,22 +63,9 @@ class AuthController extends Controller
         return response()->json(['success' => false, 'message' => 'Invalid credentials.'], 401);
     }
 
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            // Email must be unique across BOTH users and team_members so login lookups don't collide.
-            'email' => 'required|string|max:255|unique:users,email|unique:team_members,email',
-            'password' => 'required|string|min:4',
-            'phone' => 'nullable|string|max:64',
-            'role' => 'required|in:CUSTOMER,SUPPLIER,FOREIGN_SUPPLIER',
-            'companyDetails' => 'nullable|array',
-            // Cap base64 data-URL fields at ~7.5MB raw so a malicious upload can't OOM the API
-            'companyDetails.tradeLicenseDataUrl' => 'nullable|string|max:10000000',
-            'companyDetails.authorizedSignatoryDataUrl' => 'nullable|string|max:10000000',
-            'companyDetails.isoCertificateDataUrl' => 'nullable|string|max:10000000',
-            'companyDetails.labTestDataUrl' => 'nullable|string|max:10000000',
-        ]);
+        $data = $request->validated();
 
         $user = User::create([
             'id' => (string) Str::uuid(),
@@ -91,27 +78,7 @@ class AuthController extends Controller
         ]);
 
         if (!empty($data['companyDetails']) && is_array($data['companyDetails'])) {
-            $cd = $data['companyDetails'];
-            CompanyDetails::create([
-                'user_id' => $user->id,
-                'address' => $cd['address'] ?? null,
-                'website' => $cd['website'] ?? null,
-                'country' => $cd['country'] ?? null,
-                'trade_license_number' => $cd['tradeLicenseNumber'] ?? null,
-                'trade_license_expiry' => $cd['tradeLicenseExpiry'] ?? null,
-                'trade_license_file_name' => $cd['tradeLicenseFileName'] ?? null,
-                'trade_license_data_url' => $cd['tradeLicenseDataUrl'] ?? null,
-                'authorized_signatory' => $cd['authorizedSignatory'] ?? null,
-                'authorized_signatory_expiry' => $cd['authorizedSignatoryExpiry'] ?? null,
-                'authorized_signatory_file_name' => $cd['authorizedSignatoryFileName'] ?? null,
-                'authorized_signatory_data_url' => $cd['authorizedSignatoryDataUrl'] ?? null,
-                'business_type' => $cd['businessType'] ?? null,
-                'iso_certificate_file_name' => $cd['isoCertificateFileName'] ?? null,
-                'iso_certificate_expiry' => $cd['isoCertificateExpiry'] ?? null,
-                'iso_certificate_data_url' => $cd['isoCertificateDataUrl'] ?? null,
-                'lab_test_file_name' => $cd['labTestFileName'] ?? null,
-                'lab_test_data_url' => $cd['labTestDataUrl'] ?? null,
-            ]);
+            CompanyDetails::create(CompanyDetailsPayload::fromRequest($data['companyDetails'], $user->id));
         }
 
         // Fan-out: ping every admin so they see the new pending registration

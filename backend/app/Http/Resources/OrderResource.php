@@ -15,6 +15,7 @@ class OrderResource extends JsonResource
             'productName' => $this->product_name,
             'customerId' => $this->customer_id,
             'customerName' => $this->customer_name,
+            'supplierId' => $this->supplier_id,
             'supplierName' => $this->supplier_name,
             'quantity' => (int) $this->quantity,
             'bonusQuantity' => $this->bonus_quantity !== null ? (int) $this->bonus_quantity : null,

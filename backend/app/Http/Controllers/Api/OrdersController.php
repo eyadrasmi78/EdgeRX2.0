@@ -42,11 +42,7 @@ class OrdersController extends Controller
             return response()->json(['message' => 'Account not approved.'], 403);
         }
 
-        $data = $request->validate([
-            'productId' => 'required|string|exists:products,id',
-            'quantity' => 'required|integer|min:1',
-            'bonusQuantity' => 'nullable|integer|min:0',
-        ]);
+        $data = $request->validated();
 
         $product = Product::findOrFail($data['productId']);
 
@@ -97,7 +93,7 @@ class OrdersController extends Controller
         return new OrderResource($order->load('statusHistory'));
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateOrderRequest $request, $id)
     {
         $user = $request->user();
         $order = Order::findOrFail($id);
@@ -108,15 +104,7 @@ class OrdersController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $data = $request->validate([
-            'status' => 'nullable|string',
-            'note' => 'nullable|string',
-            'declineReason' => 'nullable|string',
-            'returnRequested' => 'nullable|boolean',
-            'returnReason' => 'nullable|in:DAMAGED,BROKEN,INCORRECT_DETAILS,OTHER',
-            'returnNote' => 'nullable|string',
-            'bonusQuantity' => 'nullable|integer|min:0',
-        ]);
+        $data = $request->validated();
 
         if (isset($data['status']) && $data['status'] !== $order->status) {
             $order->status = $data['status'];

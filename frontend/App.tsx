@@ -41,6 +41,11 @@ export function App() {
         const session = await DataService.bootstrap();
         if (session.user) {
           setUser(session.user);
+          // Restore the persisted cart from the server so a refresh doesn't drop it.
+          if (session.user.role === UserRole.CUSTOMER) {
+            const items = await DataService.loadCart();
+            if (items.length) setCart(items);
+          }
         }
         setProducts(DataService.getProducts());
         setOrders(DataService.getOrders());
@@ -49,6 +54,15 @@ export function App() {
       }
     })();
   }, []);
+
+  // Persist cart to server whenever it changes (debounced + skip during boot/logout)
+  useEffect(() => {
+    if (isBooting || !user || user.role !== UserRole.CUSTOMER) return;
+    const handle = setTimeout(() => {
+      DataService.saveCart(cart.map(c => ({ productId: c.product.id, quantity: c.quantity })));
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [cart, isBooting, user]);
 
   const addNotification = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
