@@ -21,6 +21,9 @@ class ProductsController extends Controller
         if (!in_array($user->role, ['SUPPLIER', 'FOREIGN_SUPPLIER', 'ADMIN'], true)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
+        if (!$user->isApproved()) {
+            return response()->json(['message' => 'Account not approved.'], 403);
+        }
         $data = $this->validateProduct($request);
         $data['id'] = $data['id'] ?? (string) Str::uuid();
         $data['supplier_id'] = $data['supplier_id'] ?? $user->id;
@@ -55,9 +58,12 @@ class ProductsController extends Controller
             'unitOfMeasurement' => ($partial ? 'nullable' : 'required') . '|string|max:64',
             'stockLevel' => ($partial ? 'nullable' : 'required') . '|integer|min:0',
             'sku' => ($partial ? 'nullable' : 'required') . '|string|max:128',
-            'image' => 'nullable|string',
-            'images' => 'nullable|array',
-            'video' => 'nullable|string',
+            // Cap base64 data URLs at ~7.5MB raw to prevent memory blow-ups
+            'image' => 'nullable|string|max:10000000',
+            'images' => 'nullable|array|max:8',
+            'images.*' => 'nullable|string|max:10000000',
+            'video' => 'nullable|string|max:10000000',
+            'productRegistrationDataUrl' => 'nullable|string|max:10000000',
             'genericName' => 'nullable|string',
             'brandName' => 'nullable|string',
             'dosageForm' => 'nullable|string',

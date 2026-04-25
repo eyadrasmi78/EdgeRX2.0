@@ -14,10 +14,15 @@ class PartnershipsController extends Controller
     {
         $user = $request->user();
         $query = PartnershipRequest::query();
-        if ($user->isLocalSupplier()) {
+        if ($user->isAdmin()) {
+            // no scope — admin sees all
+        } elseif ($user->isLocalSupplier()) {
             $query->where('from_agent_id', $user->id);
         } elseif ($user->isForeignSupplier()) {
             $query->where('to_foreign_supplier_id', $user->id);
+        } else {
+            // Customers and unapproved roles see no partnership data
+            return PartnershipRequestResource::collection(collect());
         }
         return PartnershipRequestResource::collection($query->orderByDesc('date')->get());
     }

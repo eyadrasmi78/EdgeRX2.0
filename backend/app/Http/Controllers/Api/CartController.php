@@ -58,6 +58,9 @@ class CartController extends Controller
         if (!$user->isCustomer()) {
             return response()->json(['message' => 'Only customers can check out.'], 403);
         }
+        if (!$user->isApproved()) {
+            return response()->json(['message' => 'Account not approved.'], 403);
+        }
         $items = CartItem::with('product')->where('user_id', $user->id)->get();
         if ($items->isEmpty()) {
             return response()->json(['message' => 'Cart is empty.'], 422);

@@ -75,8 +75,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
     refreshData();
   }, []);
 
-  const handleUpdateStatus = (userId: string, status: RegistrationStatus) => {
-    DataService.updateUserStatus(userId, status);
+  const handleUpdateStatus = async (userId: string, status: RegistrationStatus) => {
+    await DataService.updateUserStatus(userId, status);
     refreshData();
   };
 
@@ -168,13 +168,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
 
     const result = await DataService.registerUser(newUser);
     if (result.success) {
-      // We don't have the new user's id from the API; refresh and approve any PENDING entry with that email.
-      await refreshData();
-      const created = DataService.getUsers().find(u => u.email === newUser.email);
-      if (created) {
-        await DataService.updateUserStatus(created.id, RegistrationStatus.APPROVED);
-        await refreshData();
+      // Backend returns the created user — auto-approve admin-created entities directly by id.
+      if (result.user?.id) {
+        await DataService.updateUserStatus(result.user.id, RegistrationStatus.APPROVED);
       }
+      await refreshData();
       setIsCreateModalOpen(false);
       setCreateFormData({
         name: '', email: '', password: 'password123', role: UserRole.CUSTOMER, address: '', website: '',

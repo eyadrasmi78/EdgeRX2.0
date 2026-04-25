@@ -107,7 +107,7 @@ export const DataService = {
     }
   },
 
-  registerUser: async (newUser: any): Promise<{ success: boolean; message?: string }> => {
+  registerUser: async (newUser: any): Promise<{ success: boolean; message?: string; user?: User }> => {
     try {
       const body: any = {
         name: newUser.name,
@@ -118,7 +118,12 @@ export const DataService = {
         companyDetails: newUser.companyDetails,
       };
       const r = await api.post<any>('/auth/register', body);
-      return { success: true, message: r?.message || 'Registration successful. Pending approval.' };
+      // The backend returns { success, message, user } — surface user so admins can immediately approve.
+      return {
+        success: true,
+        message: r?.message || 'Registration successful. Pending approval.',
+        user: r?.user,
+      };
     } catch (e: any) {
       return { success: false, message: e?.data?.message || 'Registration failed' };
     }

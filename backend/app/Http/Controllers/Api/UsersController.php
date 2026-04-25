@@ -12,10 +12,18 @@ use Illuminate\Support\Str;
 
 class UsersController extends Controller
 {
-    public function index()
+    public function index(\Illuminate\Http\Request $request)
     {
-        $users = User::with('companyDetails', 'teamMembers')->get();
-        return UserResource::collection($users);
+        $authUser = $request->user();
+        $query = User::with('companyDetails', 'teamMembers');
+
+        // Non-admins can discover only APPROVED counterparties
+        // (e.g. local supplier needs to see foreign suppliers for partnership requests).
+        if (!$authUser->isAdmin()) {
+            $query->where('status', 'APPROVED');
+        }
+
+        return UserResource::collection($query->get());
     }
 
     public function show($id)
@@ -109,7 +117,8 @@ class UsersController extends Controller
         }
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|max:255',
+            // Email must be unique across BOTH users and team_members so login lookups don't collide.
+            'email' => 'required|string|max:255|unique:users,email|unique:team_members,email',
             'phone' => 'nullable|string|max:64',
             'jobTitle' => 'nullable|string|max:255',
             'password' => 'required|string|min:4',

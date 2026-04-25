@@ -18,11 +18,15 @@ class OrdersController extends Controller
         $user = $request->user();
         $query = Order::with('statusHistory');
 
-        // ADMIN sees all; CUSTOMER sees own; SUPPLIER/FOREIGN_SUPPLIER see orders involving their products
-        if ($user->isCustomer()) {
+        // Explicit role-scoped access: ADMIN sees all; CUSTOMER own; SUPPLIER/FOREIGN_SUPPLIER own; everyone else nothing.
+        if ($user->isAdmin()) {
+            // no scope
+        } elseif ($user->isCustomer()) {
             $query->where('customer_id', $user->id);
         } elseif ($user->isSupplier()) {
             $query->where('supplier_id', $user->id);
+        } else {
+            return OrderResource::collection(collect()); // default deny
         }
 
         return OrderResource::collection($query->orderByDesc('date')->get());
@@ -34,6 +38,9 @@ class OrdersController extends Controller
         if (!$user->isCustomer()) {
             return response()->json(['message' => 'Only customers can place orders.'], 403);
         }
+        if (!$user->isApproved()) {
+            return response()->json(['message' => 'Account not approved.'], 403);
+        }
 
         $data = $request->validate([
             'productId' => 'required|string|exists:products,id',
@@ -42,6 +49,14 @@ class OrdersController extends Controller
         ]);
 
         $product = Product::findOrFail($data['productId']);
+
+        // Apply bonus rule server-side (single source of truth — frontend display is informational only)
+        $bonusQty = null;
+        if ($product->bonus_threshold && $data['quantity'] >= $product->bonus_threshold) {
+            $bonusQty = $product->bonus_type === 'percentage'
+                ? (int) floor($data['quantity'] * (((float) $product->bonus_value) / 100))
+                : (int) $product->bonus_value;
+        }
 
         $order = Order::create([
             'id' => (string) Str::uuid(),
@@ -53,7 +68,7 @@ class OrdersController extends Controller
             'supplier_id' => $product->supplier_id,
             'supplier_name' => $product->supplier_name,
             'quantity' => $data['quantity'],
-            'bonus_quantity' => $data['bonusQuantity'] ?? null,
+            'bonus_quantity' => $bonusQty ?? ($data['bonusQuantity'] ?? null),
             'unit_of_measurement' => $product->unit_of_measurement,
             'status' => 'Received',
             'date' => now(),
