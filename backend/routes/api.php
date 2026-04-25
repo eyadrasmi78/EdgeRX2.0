@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ChatsController;
 use App\Http\Controllers\Api\FeedController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\NotificationsController;
 use App\Http\Controllers\Api\OrdersController;
 use App\Http\Controllers\Api\PartnershipsController;
@@ -20,11 +21,7 @@ use Illuminate\Support\Facades\Route;
 | Mutating endpoints sit behind auth + per-controller authorization checks.
 */
 
-Route::get('/healthz', fn () => response()->json([
-    'status' => 'ok',
-    'service' => 'edgerx-api',
-    'time' => now()->toIso8601String(),
-]));
+Route::get('/healthz', HealthController::class);
 
 // --- Public auth ---
 Route::post('/auth/login',    [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -69,7 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/feed',                      [FeedController::class, 'store']);
     Route::post('/feed/customer-request',     [FeedController::class, 'customerRequest']);
     Route::post('/feed/advertisement',        [FeedController::class, 'advertisement']);
-    Route::post('/feed/admin-news',           [FeedController::class, 'adminNews']);
+    Route::post('/feed/admin-news',           [FeedController::class, 'adminNews'])->middleware('role:ADMIN');
 
     // Partnerships
     Route::get('/partnerships',           [PartnershipsController::class, 'index']);

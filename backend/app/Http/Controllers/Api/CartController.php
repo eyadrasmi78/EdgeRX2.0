@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CartSetRequest;
 use App\Http\Resources\OrderResource;
 use App\Http\Resources\ProductResource;
 use App\Models\CartItem;
@@ -25,13 +26,9 @@ class CartController extends Controller
         ])->filter(fn ($x) => $x['product'] !== null)->values();
     }
 
-    public function set(Request $request)
+    public function set(CartSetRequest $request)
     {
-        $data = $request->validate([
-            'items' => 'required|array',
-            'items.*.productId' => 'required|string|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-        ]);
+        $data = $request->validated();
         $userId = $request->user()->id;
         DB::transaction(function () use ($userId, $data) {
             CartItem::where('user_id', $userId)->delete();

@@ -47,8 +47,15 @@ echo "Running migrations..."
 php artisan migrate --force
 
 echo ""
-echo "Running seeders (idempotent updateOrCreate)..."
-php artisan db:seed --force --class=DemoDataSeeder || echo "  seeder failed (non-fatal — tables exist, demo data already there)"
+# Demo seeder is gated by RUN_DEMO_SEEDER so prod doesn't overwrite real customer
+# data on every deploy. To seed in production: temporarily set RUN_DEMO_SEEDER=true,
+# deploy, then unset and deploy again.
+if [ "${APP_ENV:-}" != "production" ] || [ "${RUN_DEMO_SEEDER:-}" = "true" ]; then
+    echo "Running DemoDataSeeder..."
+    php artisan db:seed --force --class=DemoDataSeeder || echo "  seeder failed (non-fatal — tables exist, demo data already there)"
+else
+    echo "Skipping DemoDataSeeder (APP_ENV=production and RUN_DEMO_SEEDER not set)."
+fi
 
 echo ""
 echo "storage:link..."

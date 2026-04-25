@@ -13,7 +13,9 @@ class PartnershipsController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = PartnershipRequest::query();
+        // Eager-load fromAgent + companyDetails so the foreign supplier's request inbox
+        // can show the requesting agent's country / license without an N+1.
+        $query = PartnershipRequest::query()->with(['fromAgent.companyDetails']);
         if ($user->isAdmin()) {
             // no scope — admin sees all
         } elseif ($user->isLocalSupplier()) {

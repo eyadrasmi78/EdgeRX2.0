@@ -103,9 +103,11 @@ class DemoDataSeeder extends Seeder
             $company = $u['company'] ?? null;
             unset($u['company']);
 
-            // Hash password manually since 'hashed' cast only triggers on attribute set,
-            // but we need it deterministic during the migration too.
-            $u['password'] = Hash::make($u['password']);
+            // Hash password manually since 'hashed' cast only triggers on attribute set.
+            // Use bcrypt cost 4 here (lowest valid) — these are seed users, the cost only
+            // matters at login time and bcrypt validation is constant-time anyway.
+            // Live registrations still use the BCRYPT_ROUNDS=12 default.
+            $u['password'] = Hash::make($u['password'], ['rounds' => 4]);
 
             User::updateOrCreate(['id' => $u['id']], $u);
 
