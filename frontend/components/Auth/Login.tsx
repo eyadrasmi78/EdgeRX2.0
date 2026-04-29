@@ -64,7 +64,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onNavigateToRegist
             <div className="bg-white/10 backdrop-blur-lg p-10 rounded-3xl border border-white/20 shadow-2xl">
                  <div className="flex items-center mb-8 border-b border-white/20 pb-8">
                     <div className="bg-white px-6 py-4 rounded-2xl shadow-lg w-full flex items-center justify-center">
-                      <img src="/logo-wide.png" alt="EdgeRx" className="h-14 w-auto" />
+                      <img src="/logo-wide.png" alt="EdgeRx" className="h-44 w-auto" />
                     </div>
                  </div>
                  <h2 className="text-3xl font-bold mb-4">{t('hero_title')}</h2>
