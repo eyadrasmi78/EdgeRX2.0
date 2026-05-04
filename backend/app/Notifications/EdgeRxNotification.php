@@ -67,12 +67,23 @@ class EdgeRxNotification extends Notification
         ];
     }
 
+    /**
+     * BE-36 cleanup: explicit token list rather than str_contains chain.
+     * Easier to grep, easier to extend, no unintended substring matches
+     * (e.g. "preapproved" would have matched the old "approved" check).
+     */
+    private const KIND_WARNING_TOKENS = ['rejected', 'declined', 'failed', 'cancelled', 'expired', 'dissolved'];
+    private const KIND_SUCCESS_TOKENS = ['approved', 'completed', 'accepted', 'released', 'active'];
+
     private function mapType(): string
     {
-        return match (true) {
-            str_contains($this->kind, 'rejected'), str_contains($this->kind, 'declined') => 'warning',
-            str_contains($this->kind, 'approved'), str_contains($this->kind, 'completed'), str_contains($this->kind, 'accepted') => 'success',
-            default => 'info',
-        };
+        $kind = strtolower($this->kind);
+        foreach (self::KIND_WARNING_TOKENS as $tok) {
+            if (str_contains($kind, $tok)) return 'warning';
+        }
+        foreach (self::KIND_SUCCESS_TOKENS as $tok) {
+            if (str_contains($kind, $tok)) return 'success';
+        }
+        return 'info';
     }
 }

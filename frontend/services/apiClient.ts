@@ -149,6 +149,18 @@ export const DataService = {
   },
   getNotifications: (): InAppNotification[] => _notifications,
 
+  /** Mark a single bell notification as read (POST /notifications/{id}/read). */
+  markNotificationRead: async (id: string): Promise<{ success: boolean }> => {
+    try { await api.post(`/notifications/${id}/read`); return { success: true }; }
+    catch (e) { logSliceError('mark-read', e); return { success: false }; }
+  },
+
+  /** Mark all bell notifications as read. */
+  markAllNotificationsRead: async (): Promise<{ success: boolean }> => {
+    try { await api.post(`/notifications/read-all`); return { success: true }; }
+    catch (e) { logSliceError('mark-all-read', e); return { success: false }; }
+  },
+
   /* ── AUTH ───────────────────────────────────────────── */
   loginUser: async (email: string, password: string): Promise<{
     success: boolean; user?: User; isTeamMember?: boolean; memberDetails?: any; message?: string;

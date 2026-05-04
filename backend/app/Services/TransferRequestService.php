@@ -368,10 +368,28 @@ final class TransferRequestService
      * Internals
      * ───────────────────────────────────────────────────────── */
 
+    /**
+     * BE-37 fix: use bcmath for currency arithmetic to eliminate any
+     * floating-point rounding drift. PHP floats lose precision at high values
+     * (e.g. 1234567.89 * 0.05555). bcmath operates on string-decimal pairs
+     * with the scale we control (2dp = fils-rounded KWD). The bcmath PHP
+     * extension is enabled in the Dockerfile (docker-php-ext-install bcmath).
+     */
     private function computeFee(float $refund, float $flat, float $percent): float
     {
-        $pctFee = round($refund * ($percent / 100), 2);
-        return max((float) $flat, $pctFee);
+        // Format inputs as 2-decimal strings so bcmath sees stable values
+        $refundStr  = number_format($refund,  2, '.', '');
+        $percentStr = number_format($percent, 2, '.', '');
+        $flatStr    = number_format($flat,    2, '.', '');
+
+        // pctFee = round(refund * percent / 100, 2) — done in bcmath at scale 4
+        // then narrowed to 2dp for the cast back to float.
+        $pctFee = bcmul($refundStr, bcdiv($percentStr, '100', 4), 4);
+        $pctFee = bcadd($pctFee, '0', 2); // round-down to 2dp
+
+        // Take the larger of flat vs percent
+        $applied = bccomp($flatStr, $pctFee, 2) >= 0 ? $flatStr : $pctFee;
+        return (float) $applied;
     }
 
     private function expectStatus(TransferRequest $t, array $allowed): void

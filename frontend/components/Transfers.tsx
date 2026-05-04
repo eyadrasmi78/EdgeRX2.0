@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { TransferRequest, TransferDiscoveryMode, User } from '../types';
 import { DataService } from '../services/mockData';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   ArrowLeftRight, ShieldCheck, AlertTriangle, FileText, Send, X,
   CheckCircle, XCircle, Truck, Banknote, Package, Loader2, Plus,
@@ -51,10 +52,8 @@ export const Transfers: React.FC<TransfersProps> = ({ currentUser }) => {
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = useMemo(() => {
-    if (!isAdmin) return transfers;
-    return transfers;
-  }, [transfers, isAdmin]);
+  // FE-22 cleanup: removed dead `filtered` useMemo that just returned `transfers`
+  // unchanged. Server-side scoping in TransfersController already filters by role.
 
   const act = async (label: string, fn: () => Promise<{ success: boolean; transfer?: TransferRequest; message?: string }>) => {
     setBusy(label); setError(null);
@@ -96,14 +95,14 @@ export const Transfers: React.FC<TransfersProps> = ({ currentUser }) => {
           <div className="flex items-center justify-center py-12 text-slate-400 text-sm">
             <Loader2 size={16} className="animate-spin mr-2" /> {t('loading')}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : transfers.length === 0 ? (
           <div className="text-center py-12">
             <ArrowLeftRight size={36} className="mx-auto text-slate-300 mb-2" />
             <p className="text-sm text-slate-500">{t('transfers_empty')}</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(tr => (
+            {transfers.map(tr => (
               <div key={tr.id} className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 hover:border-teal-300 transition cursor-pointer" onClick={() => setSelected(tr)}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
@@ -182,10 +181,11 @@ const TransferDetail: React.FC<{
   const isMarketplaceClaimable = tr.discoveryMode === 'MARKETPLACE' && tr.status === 'ACCEPTED_BY_SUPPLIER' && !tr.targetUserId;
 
   const [reason, setReason] = useState('');
+  const a11yRef = useModalA11y(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div ref={a11yRef} role="dialog" aria-modal="true" aria-label="Transfer details" onClick={(e) => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
         <header className="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-sm">{t('transfer_details')}</h3>
@@ -389,11 +389,13 @@ const CreateTransferModal: React.FC<{
     }
   };
 
+  const a11yRef = useModalA11y(true, onClose);
+
   return (
-    <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div ref={a11yRef} role="dialog" aria-modal="true" aria-labelledby="transfer-create-title" onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">
         <header className="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between">
-          <h3 className="font-bold text-slate-900">{t('transfer_new')}</h3>
+          <h3 id="transfer-create-title" className="font-bold text-slate-900">{t('transfer_new')}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20}/></button>
         </header>
         <div className="p-5 space-y-3 text-sm">

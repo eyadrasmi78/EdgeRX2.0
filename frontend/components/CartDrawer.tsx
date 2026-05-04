@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { CartItem, Product } from '../types';
 import { X, Trash2, ShoppingCart, Send, Plus, Minus, Gift, Building } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -108,6 +109,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     );
   };
 
+  // FE-12 minimum a11y: ESC closes, focus stays inside the drawer
+  const a11yRef = useModalA11y(true, onClose);
+
   return (
     /* FE-5 fix: drawer slides in from the inline-end edge regardless of LTR/RTL.
        In RTL, that's the LEFT side of the screen; in LTR, the RIGHT. We use
@@ -119,11 +123,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col transition-transform duration-300">
+      <div ref={a11yRef} role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title" className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col transition-transform duration-300">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-2">
             <ShoppingCart className="text-teal-600" size={20} />
-            <h2 className="text-lg font-bold text-gray-900">{t('cart_title')} ({cart.length})</h2>
+            <h2 id="cart-drawer-title" className="text-lg font-bold text-gray-900">{t('cart_title')} ({cart.length})</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100">
             <X size={20} />

@@ -14,6 +14,7 @@ import { Transfers } from './components/Transfers';
 import { PricingAgreements } from './components/PricingAgreements';
 import { DataService } from './services/mockData';
 import { subscribeUnauthorized } from './services/api';
+import { setAiErrorHandler } from './services/aiService';
 import { User, Product, Order, Notification, CartItem, UserRole, OrderStatus, RegistrationStatus } from './types';
 import { useLanguage } from './contexts/LanguageContext';
 import { LogOut, ShoppingCart, User as UserIcon, Bell, Home, Globe, LayoutGrid, ShoppingBag, Clock, Settings, CheckCircle, X, Clipboard, ExternalLink, Activity, BarChart3, Users, ShieldCheck, ArrowLeftRight, FileSignature } from 'lucide-react';
@@ -74,6 +75,16 @@ export function App() {
       setIsBooting(false);
     });
     return unsub;
+  }, []);
+
+  /**
+   * FE-20 fix: AI failures surface as toast notifications so the customer
+   * understands why analysis/translation didn't work (rate limit, network,
+   * bad prompt) instead of seeing a generic fallback string.
+   */
+  useEffect(() => {
+    setAiErrorHandler((msg) => addNotification(msg, 'warning'));
+    return () => setAiErrorHandler(null);
   }, []);
 
   // Persist cart to server whenever it changes (debounced + skip during boot/logout).
@@ -184,23 +195,16 @@ export function App() {
     return () => clearInterval(id);
   }, [user]);
 
+  /**
+   * FE-13 fix: route through DataService.markNotificationRead so the CSRF
+   * cookie + credentials handling lives in one place (services/api.ts) rather
+   * than being hand-rolled and duplicated in App.tsx.
+   */
   const markNotificationRead = async (id: string) => {
-    try {
-      const res = await fetch(`/api/notifications/${id}/read`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-XSRF-TOKEN': decodeURIComponent(
-            (document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN=')) || '').slice('XSRF-TOKEN='.length)
-          ),
-        },
-      });
-      if (res.ok) {
-        setServerNotifications(prev => prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n));
-      }
-    } catch {/* ignore */}
+    const r = await DataService.markNotificationRead(id);
+    if (r.success) {
+      setServerNotifications(prev => prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n));
+    }
   };
 
   const unreadCount = serverNotifications.filter(n => !n.readAt).length;
@@ -618,17 +622,8 @@ export function App() {
                           <button
                             type="button"
                             onClick={async () => {
-                              await fetch('/api/notifications/read-all', {
-                                method: 'POST',
-                                credentials: 'include',
-                                headers: {
-                                  'Accept': 'application/json',
-                                  'X-Requested-With': 'XMLHttpRequest',
-                                  'X-XSRF-TOKEN': decodeURIComponent(
-                                    (document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN=')) || '').slice('XSRF-TOKEN='.length)
-                                  ),
-                                },
-                              }).catch(() => {});
+                              // FE-13 fix: routed through DataService (single CSRF/cookie path)
+                              await DataService.markAllNotificationsRead();
                               setServerNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
                             }}
                             className="text-[11px] font-medium text-teal-600 hover:text-teal-700"

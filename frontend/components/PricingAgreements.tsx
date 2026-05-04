@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { PricingAgreement, User } from '../types';
 import { DataService } from '../services/mockData';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   FileSignature, FileCheck, X, Plus, Loader2, AlertTriangle,
   Send, Hash, Trash2, CheckCircle, XCircle, ChevronRight
@@ -145,10 +146,11 @@ const AgreementDetail: React.FC<{
   const isAdmin = currentUser.role === 'ADMIN';
   const [signedPath, setSignedPath] = useState('');
   const [reason, setReason] = useState('');
+  const a11yRef = useModalA11y(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div ref={a11yRef} role="dialog" aria-modal="true" aria-label="Agreement details" onClick={(e) => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
         <header className="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5"><Hash size={14} className="text-slate-400"/>{a.agreementNumber}</h3>
@@ -289,11 +291,13 @@ const CreateAgreementModal: React.FC<{
     }
   };
 
+  const a11yRef = useModalA11y(true, onClose);
+
   return (
-    <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div ref={a11yRef} role="dialog" aria-modal="true" aria-labelledby="agreement-create-title" onClick={(e) => e.stopPropagation()} className="bg-white w-full max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
         <header className="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between">
-          <h3 className="font-bold text-slate-900">{t('agreement_new')}</h3>
+          <h3 id="agreement-create-title" className="font-bold text-slate-900">{t('agreement_new')}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20}/></button>
         </header>
         <div className="p-5 space-y-3 text-sm">

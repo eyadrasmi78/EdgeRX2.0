@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, Order, User } from '../types';
 import { DataService } from '../services/mockData';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { X, Send, Hash, User as UserIcon, MessageSquare } from 'lucide-react';
 
 interface ChatModalProps {
@@ -95,9 +96,12 @@ export const ChatModal: React.FC<ChatModalProps> = ({ order, currentUser, onClos
   const isCustomer = currentUser.id === order.customerId;
   const chatPartnerName = isCustomer ? order.supplierName : order.customerName;
 
+  // FE-12 minimum a11y: ESC closes, Tab cycle is trapped, first input focuses
+  const a11yRef = useModalA11y(true, onClose);
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col h-[80vh] md:h-[600px] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
+      <div ref={a11yRef} role="dialog" aria-modal="true" aria-labelledby="chat-modal-title" onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col h-[80vh] md:h-[600px] animate-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
@@ -106,7 +110,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ order, currentUser, onClos
               <UserIcon size={20} />
             </div>
             <div className="overflow-hidden">
-              <h3 className="text-sm font-bold text-gray-900 truncate">
+              <h3 id="chat-modal-title" className="text-sm font-bold text-gray-900 truncate">
                 {t('chat_with')} {chatPartnerName}
               </h3>
               <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono font-bold">

@@ -5,6 +5,7 @@ import { AIService } from '../services/aiService';
 import { DataService } from '../services/mockData';
 import { X, ShoppingCart, Sparkles, Loader2, FileText, Activity, Globe, Package, Video, Play, ChevronLeft, ChevronRight, Image as ImageIcon, Phone, MessageCircle, Mail, User, CheckCircle, Languages, ChevronRight as ChevronRightIcon, Gift, Download, FileCheck, Handshake } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 interface ProductModalProps {
   product: Product;
@@ -121,9 +122,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose, on
     setIsTranslating(false);
   };
 
+  // FE-12 minimum a11y: ESC closes, focus trapped
+  const a11yRef = useModalA11y(true, onClose);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" dir={dir}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-[90vh] md:h-auto md:max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" dir={dir} onClick={onClose}>
+      <div ref={a11yRef} role="dialog" aria-modal="true" aria-label="Product details" onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-[90vh] md:h-auto md:max-h-[90vh]">
         
         {/* Gallery / Media Section */}
         <div className="flex flex-col md:flex-row h-full overflow-hidden">

@@ -181,10 +181,16 @@ final class BuyingGroupReleaseService
             'threshold_not_met' => 'Did not reach the bulk threshold — dissolved.',
             'no_accepted_members' => 'No members accepted — dissolved.',
             'admin_cancel' => 'Cancelled by admin.',
+            'all_members_declined' => 'All members declined — dissolved.',
+            'product_missing' => 'Product no longer available — dissolved.',
             default => 'Dissolved.',
         };
+        // BE-34 fix: eager-load members + their customer + masteredBy in one
+        // shot rather than firing N+1 SELECTs (one per member, plus one per
+        // master fan-out). For a 20-member group this drops 41 queries to 3.
+        $group->loadMissing(['members.customer.masteredBy']);
         foreach ($group->members as $m) {
-            $customer = User::with('masteredBy')->find($m->customer_id);
+            $customer = $m->customer;
             if (!$customer) continue;
             Recipients::notify($customer, new EdgeRxNotification(
                 kind: 'buying_group_dissolved',

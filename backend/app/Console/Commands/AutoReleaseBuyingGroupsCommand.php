@@ -11,8 +11,12 @@ use Illuminate\Console\Command;
  *   - releases them (threshold met → orders created)
  *   - dissolves them (threshold not met → notify + close)
  *
- * Idempotent: terminal groups are skipped. Safe to run on every minute,
- * but realistically scheduled hourly via withSchedule() in bootstrap/app.php.
+ * BE-27 wording fix: this command is "safe to re-run", not strictly idempotent.
+ * Terminal groups are skipped, and BuyingGroupReleaseService::release uses
+ * lockForUpdate() so two parallel invocations cannot produce duplicate orders.
+ * The 10-minute `withoutOverlapping` mutex on the hourly schedule means the
+ * concurrent-execution path is unreachable in normal operation; the row-level
+ * lock is the actual correctness guarantee.
  */
 class AutoReleaseBuyingGroupsCommand extends Command
 {

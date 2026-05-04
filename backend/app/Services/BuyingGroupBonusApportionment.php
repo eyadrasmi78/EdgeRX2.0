@@ -57,15 +57,19 @@ final class BuyingGroupBonusApportionment
             $assigned += $share;
         }
 
-        // Remainder → assign to largest committed (deterministic; ties broken by lowest member id)
+        // Remainder → assign to largest committed (deterministic; ties broken
+        // BE-15 fix: by lexical comparison of UUID strings rather than (int) cast
+        // which collapsed all UUIDs to 0 and produced non-deterministic order.
+        // BE-35 cleanup: leftover dev comment about "fair fallback" removed —
+        // the round-robin distribution is the intended behaviour, not a fallback.
         $remainder = $aggregate - $assigned;
         if ($remainder > 0 && !empty($members)) {
             usort($members, function ($a, $b) {
                 $cmp = ((int) $b->committed_quantity) <=> ((int) $a->committed_quantity);
-                return $cmp !== 0 ? $cmp : ((int) $a->id) <=> ((int) $b->id);
+                return $cmp !== 0 ? $cmp : strcmp((string) $a->id, (string) $b->id);
             });
-            // Distribute one unit at a time so we don't dump all remainder on a single member
-            // when remainder > member count — fair fallback.
+            // Distribute one unit at a time round-robin so the remainder is
+            // spread across the largest committers rather than dumped on one.
             for ($i = 0; $i < $remainder; $i++) {
                 $shares[$members[$i % count($members)]->id] += 1;
             }
