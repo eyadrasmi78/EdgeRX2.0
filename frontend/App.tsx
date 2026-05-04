@@ -15,6 +15,8 @@ import { PricingAgreements } from './components/PricingAgreements';
 import { DataService } from './services/mockData';
 import { subscribeUnauthorized } from './services/api';
 import { setAiErrorHandler } from './services/aiService';
+import { registerNotifier } from './services/notify';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { User, Product, Order, Notification, CartItem, UserRole, OrderStatus, RegistrationStatus } from './types';
 import { useLanguage } from './contexts/LanguageContext';
 import { LogOut, ShoppingCart, User as UserIcon, Bell, Home, Globe, LayoutGrid, ShoppingBag, Clock, Settings, CheckCircle, X, Clipboard, ExternalLink, Activity, BarChart3, Users, ShieldCheck, ArrowLeftRight, FileSignature } from 'lucide-react';
@@ -85,6 +87,15 @@ export function App() {
   useEffect(() => {
     setAiErrorHandler((msg) => addNotification(msg, 'warning'));
     return () => setAiErrorHandler(null);
+  }, []);
+
+  /**
+   * FE-11 fix: register the global notifier so any component can call
+   * notify(...) from services/notify.ts instead of using window.alert().
+   */
+  useEffect(() => {
+    registerNotifier((msg, type = 'info') => addNotification(msg, type));
+    return () => registerNotifier(null);
   }, []);
 
   // Persist cart to server whenever it changes (debounced + skip during boot/logout).
@@ -732,10 +743,13 @@ export function App() {
         onCheckout={handleCheckout}
       />
 
-      <NotificationToast 
-        notifications={notifications} 
-        removeNotification={removeNotification} 
+      <NotificationToast
+        notifications={notifications}
+        removeNotification={removeNotification}
       />
+
+      {/* FE-11: branded confirm/alert replacement, mounted once globally */}
+      <ConfirmDialog />
     </div>
   );
 }

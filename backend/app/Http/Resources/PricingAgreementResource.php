@@ -11,10 +11,15 @@ class PricingAgreementResource extends JsonResource
         $u = $request->user();
         $isAdmin = $u?->isAdmin() ?? false;
         $isSupplier = $u && $u->id === $this->supplier_id;
+
+        // BE-18 fix: use the memoized User::ownsPharmacy() helper rather than
+        // running masterOf()->where()->exists() per-resource. ownsPharmacy()
+        // caches the master's child id list on the request-scoped User
+        // instance, so 1 query per request total instead of N (one per
+        // agreement in the list).
         $isCustomerSide = $u && (
             $u->id === $this->customer_id ||
-            ($u->isPharmacyMaster() && $u->masterOf()->where('users.id', $this->customer_id)->exists()) ||
-            ($this->scope === 'MASTER_AND_CHILDREN' && $u->id === $this->customer_id)
+            ($u->isPharmacyMaster() && $u->ownsPharmacy($this->customer_id))
         );
 
         $items = $this->whenLoaded('items', function () {

@@ -32,15 +32,17 @@ class BuyingGroupsController extends Controller
         $user = $request->user();
         $query = BuyingGroup::with(['product', 'supplier', 'members.customer']);
 
+        // BE-21 fix: use whereHas on the members relation instead of a separate
+        // pluck-then-whereIn query. One round trip instead of two. Both customer
+        // and pharmacy-master scoping use the same join — just different
+        // customer_id sets.
         if ($user->isAdmin()) {
             // no scope
         } elseif ($user->isCustomer()) {
-            $groupIds = BuyingGroupMember::where('customer_id', $user->id)->pluck('buying_group_id');
-            $query->whereIn('id', $groupIds);
+            $query->whereHas('members', fn ($q) => $q->where('customer_id', $user->id));
         } elseif ($user->isPharmacyMaster()) {
             $childIds = $user->masterOf()->pluck('users.id');
-            $groupIds = BuyingGroupMember::whereIn('customer_id', $childIds)->pluck('buying_group_id');
-            $query->whereIn('id', $groupIds);
+            $query->whereHas('members', fn ($q) => $q->whereIn('customer_id', $childIds));
         } elseif ($user->isSupplier()) {
             $query->where('supplier_id', $user->id);
         } else {

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { DataService } from '../services/mockData';
+import { notify, confirmAction } from '../services/notify';
 import { User, RegistrationStatus, UserRole, Product, Order, OrderStatus, ProductCategory, ForeignBusinessType, TeamMember, Permission } from '../types';
 import { Check, X, Building, Globe, FileText, User as UserIcon, Calendar, Download, AlertTriangle, Search, Mail, MapPin, Plus, Save, Package, Edit2, Upload, LayoutGrid, Users, Filter, BarChart3, TrendingUp, CheckCircle, ShoppingBag, ShieldCheck, Microscope, ArrowLeft, Phone, Lock, Eye, Key, File as FileIcon, Send, Gift } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -80,27 +81,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
   const handleReleaseBuyingGroup = async (id: string) => {
     if (!confirm('Force-release this buying group? Orders will be created for accepted members.')) return;
     const r = await DataService.adminReleaseBuyingGroup(id);
-    if (!(r as any).success) alert((r as any).message || 'Could not release');
+    if (!(r as any).success) notify((r as any).message || 'Could not release', 'warning');
     await loadBuyingGroups();
   };
 
   const handleDissolveBuyingGroup = async (id: string) => {
     if (!confirm('Dissolve this buying group? Members will be notified and no orders created.')) return;
     const r = await DataService.adminDissolveBuyingGroup(id);
-    if (!r.success) alert(r.message || 'Could not dissolve');
+    if (!r.success) notify(r.message || 'Could not dissolve', 'warning');
     await loadBuyingGroups();
   };
 
   const handleAddBgMember = async (groupId: string, customerId: string) => {
     const r = await DataService.adminAddBuyingGroupMember(groupId, customerId);
-    if (!r.success) alert(r.message);
+    if (!r.success) notify(r.message || "Action failed.", "warning");
     await loadBuyingGroups();
   };
 
   const handleRemoveBgMember = async (groupId: string, memberId: number) => {
     if (!confirm('Remove this member from the buying group?')) return;
     const r = await DataService.adminRemoveBuyingGroupMember(groupId, memberId);
-    if (!r.success) alert(r.message);
+    if (!r.success) notify(r.message || "Action failed.", "warning");
     await loadBuyingGroups();
   };
 
@@ -148,21 +149,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
 
   const handleLinkPharmacy = async (masterId: string, pharmacyId: string) => {
     const r = await DataService.linkPharmacyToGroup(masterId, pharmacyId);
-    if (!r.success) alert(r.message);
+    if (!r.success) notify(r.message || "Action failed.", "warning");
     await loadGroups();
   };
 
   const handleUnlinkPharmacy = async (masterId: string, pharmacyId: string) => {
     if (!confirm('Unlink this pharmacy from the group?')) return;
     const r = await DataService.unlinkPharmacyFromGroup(masterId, pharmacyId);
-    if (!r.success) alert(r.message);
+    if (!r.success) notify(r.message || "Action failed.", "warning");
     await loadGroups();
   };
 
   const handleDeleteGroup = async (masterId: string) => {
     if (!confirm('Delete this Pharmacy Master account? Children stay (just unlinked).')) return;
     const r = await DataService.deletePharmacyGroup(masterId);
-    if (!r.success) alert(r.message);
+    if (!r.success) notify(r.message || "Action failed.", "warning");
     await loadGroups();
   };
   
@@ -243,7 +244,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
 
   const openDocument = (url: string | undefined, title: string) => {
       if (!url) {
-          alert("This document does not have a preview available (Mock Data).");
+          notify("This document does not have a preview available.", "info");
           return;
       }
       let type: 'image' | 'pdf' | 'unknown' = 'unknown';
@@ -331,7 +332,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
         businessType: ForeignBusinessType.MANUFACTURER, isoExpiry: '', isoFile: null, labFile: null
       });
     } else {
-      alert(result.message);
+      notify(result.message || "Action failed.", "warning");
     }
   };
 
@@ -370,7 +371,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
               refreshData();
               setUserModal({ isOpen: false, mode: 'create' });
           } else {
-              alert(result.message);
+              notify(result.message || "Action failed.", "warning");
           }
       } else {
           if (userModal.editingId === viewingCompanyUsers.id) {

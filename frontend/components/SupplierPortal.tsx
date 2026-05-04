@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Order, OrderStatus, Product, User, ProductCategory, UserRole, PartnershipRequest, TeamMember, Permission, RegistrationStatus, ForeignBusinessType } from '../types';
 import { DataService } from '../services/mockData';
+import { notify } from '../services/notify';
 import { ChatModal } from './ChatModal';
 import { ProductModal } from './ProductModal';
 import { 
@@ -195,7 +196,7 @@ export const SupplierPortal: React.FC<SupplierPortalProps> = ({
       if (result.success) {
           setSentRequestsStatus(prev => ({...prev, [supplierId]: 'PENDING'}));
       } else {
-          alert(result.message);
+          notify(result.message || "Action failed.", "warning");
       }
   };
 
@@ -203,7 +204,7 @@ export const SupplierPortal: React.FC<SupplierPortalProps> = ({
       if (!viewingSupplierId) return;
       const result = await DataService.sendPartnershipRequest(currentUser, viewingSupplierId, { id: product.id, name: product.name });
       if (!result.success && result.message !== 'Request sent successfully.') {
-          // alert(result.message);
+          // notify(result.message || "Action failed.", "warning");
       }
   };
 

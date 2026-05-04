@@ -37,8 +37,15 @@ let _currentUser: User | null = null;
  * race, the slower one's response is dropped on assignment if a newer
  * generation has already been assigned. Prevents stale-data flicker.
  */
+/**
+ * FE-10 fix: race-token guards now cover ALL 9 cache slices.
+ * The previous version only protected 6 (users, products, orders, feed,
+ * partnerships, notifications). chats, currentUser, and cart could land
+ * out-of-order on rapid re-fetch.
+ */
 const _gen: Record<string, number> = {
   users: 0, products: 0, orders: 0, feed: 0, partnerships: 0, notifications: 0,
+  chats: 0, currentUser: 0, cart: 0,
 };
 function newGen(slice: string): number {
   return ++_gen[slice];
@@ -85,6 +92,9 @@ async function refreshNotifications(): Promise<void> {
 }
 async function refreshChats(orderIds: string[]): Promise<void> {
   if (!orderIds.length) return;
+  // FE-10: gen guard so a fresh refreshChats call (post-mutation) wins over
+  // any in-flight earlier call's response.
+  const g = newGen('chats');
   // Fan out in parallel; ignore individual failures so one bad room doesn't blank the whole list
   const results = await Promise.allSettled(
     orderIds.map(async (id) => {
@@ -92,6 +102,7 @@ async function refreshChats(orderIds: string[]): Promise<void> {
       return { orderId: id, messages: msgs };
     }),
   );
+  if (!isFresh('chats', g)) return; // newer refresh overtook us; drop this batch
   for (const r of results) {
     if (r.status === 'fulfilled') {
       const idx = _chats.findIndex(c => c.orderId === r.value.orderId);
@@ -220,8 +231,10 @@ export const DataService = {
         companyDetails: updatedUser.companyDetails,
       });
       await refreshUsers();
-      // Keep current user fresh
-      if (_currentUser && _currentUser.id === updatedUser.id) {
+      // FE-10: race-token guard — if a newer updateUser call landed first,
+      // don't overwrite the currentUser cache with our stale payload.
+      const g = newGen('currentUser');
+      if (isFresh('currentUser', g) && _currentUser && _currentUser.id === updatedUser.id) {
         _currentUser = { ..._currentUser, ...updatedUser } as User;
       }
       return { success: true };
@@ -279,11 +292,20 @@ export const DataService = {
   loadCart: async (): Promise<{ product: Product; quantity: number }[]> => {
     try { return await api.get('/cart'); } catch { return []; }
   },
+  /**
+   * FE-10: race-token guard. A debounced save that lands AFTER a newer one
+   * (e.g. user added another item before the prior 400ms timer fired) must
+   * not stomp on the newer write. We bump the gen at the start of saveCart
+   * and skip the DELETE/PUT if a newer save has overtaken us.
+   */
   saveCart: async (items: { productId: string; quantity: number; onBehalfOfCustomerId?: string }[]): Promise<void> => {
+    const g = newGen('cart');
     if (items.length === 0) {
+      if (!isFresh('cart', g)) return;
       try { await api.del('/cart'); } catch {/* ignore */}
       return;
     }
+    if (!isFresh('cart', g)) return;
     try { await api.put('/cart', { items }); } catch (e) { logSliceError('cart', e); }
   },
   checkoutCart: async (): Promise<{ orders: Order[] }> => {
