@@ -32,7 +32,7 @@ class SendDailyDigestCommand extends Command
         $hours = (int) $this->option('since');
         $dryRun = (bool) $this->option('dry-run');
         $since = Carbon::now()->subHours($hours);
-        $appUrl = rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/';
+        $appUrl = rtrim(config('app.frontend_url'), '/') . '/';
 
         // Find every notifiable that has unsent + recent notifications.
         $rows = DatabaseNotification::query()

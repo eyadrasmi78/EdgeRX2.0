@@ -290,7 +290,7 @@ class PricingAgreementsController extends Controller
         abort(403, 'Forbidden.');
     }
 
-    private function url(): string { return rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/'; }
+    private function url(): string { return rtrim(config('app.frontend_url'), '/') . '/'; }
 
     private function notifyCustomerForReview(PricingAgreement $a): void
     {

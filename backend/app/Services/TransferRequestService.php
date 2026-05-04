@@ -385,7 +385,7 @@ final class TransferRequestService
 
     private function url(): string
     {
-        return rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/';
+        return rtrim(config('app.frontend_url'), '/') . '/';
     }
 
     private function notifySupplierOfNewRequest(TransferRequest $t): void

@@ -29,6 +29,28 @@ class FeedController extends Controller
             'expiryDate' => 'nullable|date',
             'metadata' => 'nullable|array',
         ]);
+
+        // BE-6 / CRIT-4 fix: per-type role gates. Without this, any authenticated
+        // user could publish fake admin announcements via /api/feed.
+        $allowedTypes = match (true) {
+            $user->isAdmin()    => ['NEW_PRODUCT', 'NEW_SUPPLIER', 'STOCK_UPDATE', 'CUSTOMER_REQUEST', 'ADVERTISEMENT', 'NEWS'],
+            $user->isSupplier() => ['NEW_PRODUCT', 'NEW_SUPPLIER', 'STOCK_UPDATE', 'ADVERTISEMENT'],
+            $user->isCustomer() || $user->isPharmacyMaster() => ['CUSTOMER_REQUEST'],
+            default             => [],
+        };
+        if (!in_array($data['type'], $allowedTypes, true)) {
+            return response()->json([
+                'message' => "Your role cannot post feed items of type {$data['type']}.",
+            ], 403);
+        }
+        // NEWS is admin-only — extra safety check (also gated by route middleware on /feed/admin-news)
+        if ($data['type'] === 'NEWS' && !$user->isAdmin()) {
+            return response()->json(['message' => 'Only admins can publish NEWS items.'], 403);
+        }
+        // Only admins may pin items.
+        if (($data['isPinned'] ?? false) && !$user->isAdmin()) {
+            return response()->json(['message' => 'Only admins can pin feed items.'], 403);
+        }
         $item = FeedItem::create([
             'id' => (string) Str::uuid(),
             'type' => $data['type'],

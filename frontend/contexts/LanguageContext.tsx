@@ -235,7 +235,7 @@ const translations: Record<string, { en: string; ar: string }> = {
   'media_url': { en: 'Media URL', ar: 'رابط الوسائط' },
   'external_link': { en: 'External Link', ar: 'رابط خارجي' },
   'create_ad': { en: 'Create Advertisement', ar: 'إنشاء إعلان' },
-  'select_product': { en: 'Select Product', ar: 'اختر المنتج' },
+  // 'select_product' defined earlier (line ~90)
   'ad_duration': { en: 'Duration', ar: 'المدة' },
   'details': { en: 'Details', ar: 'التفاصيل' },
   'sku': { en: 'SKU', ar: 'رمز المنتج' },
@@ -340,7 +340,7 @@ const translations: Record<string, { en: string; ar: string }> = {
   'view_details': { en: 'View →', ar: 'عرض ←' },
   'source': { en: 'Source (A)', ar: 'المصدر (أ)' },
   'target': { en: 'Target (B)', ar: 'الهدف (ب)' },
-  'supplier': { en: 'Supplier', ar: 'المورد' },
+  // 'supplier' defined earlier (line ~244)
   'items': { en: 'Items', ar: 'العناصر' },
   'refund_total': { en: 'Refund', ar: 'المبلغ المسترد' },
   'handling_fee': { en: 'Handling Fee', ar: 'رسوم المعالجة' },
@@ -349,7 +349,7 @@ const translations: Record<string, { en: string; ar: string }> = {
   'invoice_no': { en: 'Invoice', ar: 'فاتورة' },
   'escrow': { en: 'Escrow', ar: 'حساب الضمان' },
   'accept_transfer': { en: 'Accept', ar: 'قبول' },
-  'reject': { en: 'Reject', ar: 'رفض' },
+  // 'reject' defined earlier (line ~300)
   'claim_listing': { en: 'Claim This Listing', ar: 'احجز هذا الإعلان' },
   'confirm_acceptance': { en: 'Confirm', ar: 'تأكيد' },
   'record_intake': { en: 'Mark Items Received', ar: 'تسجيل استلام العناصر' },
@@ -366,13 +366,13 @@ const translations: Record<string, { en: string; ar: string }> = {
   'discovery_marketplace_desc': { en: 'List for any pharmacy in supplier network', ar: 'عرض لأي صيدلية في شبكة المورد' },
   'local_supplier': { en: 'Local Supplier', ar: 'المورد المحلي' },
   'target_pharmacy': { en: 'Target Pharmacy', ar: 'الصيدلية الهدف' },
-  'product': { en: 'Product', ar: 'المنتج' },
+  // 'product' defined earlier (line ~101)
   'select': { en: 'Select', ar: 'اختر' },
   'quantity': { en: 'Qty', ar: 'الكمية' },
   'refund_per_unit': { en: 'Refund / Unit', ar: 'الاسترداد لكل وحدة' },
   'resale_per_unit': { en: 'Resale / Unit', ar: 'البيع لكل وحدة' },
   'batch_number': { en: 'Batch #', ar: 'رقم الدفعة' },
-  'expiry_date': { en: 'Expiry', ar: 'تاريخ الانتهاء' },
+  // 'expiry_date' defined earlier (line ~200)
   'temp_log_path_optional': { en: 'Temperature Log (cold-chain only)', ar: 'سجل درجة الحرارة (للسلسلة الباردة)' },
   'supplier_fee_flat': { en: 'Fee Flat (KWD)', ar: 'الرسوم الثابتة (د.ك)' },
   'supplier_fee_pct': { en: 'Fee %', ar: 'الرسوم %' },
@@ -406,9 +406,65 @@ const translations: Record<string, { en: string; ar: string }> = {
   'auto_renew': { en: 'Auto-Renew', ar: 'تجديد تلقائي' },
   'apply_bonuses': { en: 'Bonuses Apply', ar: 'تنطبق المكافآت' },
   'toggles': { en: 'Toggles', ar: 'الإعدادات' },
-  'unit_price': { en: 'Unit Price', ar: 'سعر الوحدة' },
+  // 'unit_price' defined earlier (line ~243)
   'add_item': { en: 'Add Item', ar: 'أضف عنصر' },
   'create_draft': { en: 'Create Draft', ar: 'إنشاء مسودة' },
+
+  // FE-4 — Phase D status / enum translations (so Arabic mode doesn't show raw English)
+  // Transfer statuses
+  'transfer_status_INITIATED':            { en: 'INITIATED',            ar: 'تم البدء' },
+  'transfer_status_SUPPLIER_REVIEW':      { en: 'SUPPLIER REVIEW',      ar: 'قيد مراجعة المورد' },
+  'transfer_status_ACCEPTED_BY_SUPPLIER': { en: 'ACCEPTED BY SUPPLIER', ar: 'قبول المورد' },
+  'transfer_status_B_CONFIRMED':          { en: 'B CONFIRMED',          ar: 'موافقة المشتري' },
+  'transfer_status_QC_INTAKE':            { en: 'QC INTAKE',            ar: 'استلام الفحص' },
+  'transfer_status_QC_INSPECTION':        { en: 'QC INSPECTION',        ar: 'فحص الجودة' },
+  'transfer_status_QC_PASSED':            { en: 'QC PASSED',            ar: 'اجتاز الفحص' },
+  'transfer_status_QC_FAILED':            { en: 'QC FAILED',            ar: 'فشل الفحص' },
+  'transfer_status_AWAITING_B_PAYMENT':   { en: 'AWAITING B PAYMENT',   ar: 'بانتظار الدفع' },
+  'transfer_status_RELEASED':             { en: 'RELEASED',             ar: 'تم الإفراج' },
+  'transfer_status_COMPLETED':            { en: 'COMPLETED',            ar: 'مكتمل' },
+  'transfer_status_CANCELLED':            { en: 'CANCELLED',            ar: 'ملغى' },
+
+  // QC item status
+  'qc_status_PENDING':                    { en: 'PENDING', ar: 'قيد الانتظار' },
+  'qc_status_PASSED':                     { en: 'PASSED',  ar: 'اجتاز' },
+  'qc_status_FAILED':                     { en: 'FAILED',  ar: 'فشل' },
+
+  // Discovery modes + cold chain
+  'discovery_DIRECT':                     { en: 'DIRECT',      ar: 'مباشر' },
+  'discovery_MARKETPLACE':                { en: 'MARKETPLACE', ar: 'سوق' },
+  'cold_chain_badge':                     { en: 'COLD',        ar: 'بارد' },
+
+  // Escrow status
+  'escrow_NONE':                          { en: 'NONE',     ar: 'لا يوجد' },
+  'escrow_LOCKED':                        { en: 'LOCKED',   ar: 'مقفل' },
+  'escrow_RELEASED':                      { en: 'RELEASED', ar: 'مُحرَّر' },
+  'escrow_REFUNDED':                      { en: 'REFUNDED', ar: 'مُسترد' },
+
+  // Units
+  'units_label':                          { en: 'units', ar: 'وحدة' },
+  'batch_label':                          { en: 'batch', ar: 'دفعة' },
+  'lot_label':                            { en: 'lot',   ar: 'حصة' },
+  'exp_label':                            { en: 'exp',   ar: 'انتهاء' },
+  'kwd_label':                            { en: 'KWD',   ar: 'د.ك' },
+
+  // Pricing Agreement statuses
+  'agreement_status_DRAFT':               { en: 'DRAFT',            ar: 'مسودة' },
+  'agreement_status_PENDING_CUSTOMER':    { en: 'PENDING CUSTOMER',  ar: 'بانتظار العميل' },
+  'agreement_status_PENDING_ADMIN':       { en: 'PENDING ADMIN',     ar: 'بانتظار الإدارة' },
+  'agreement_status_ACTIVE':              { en: 'ACTIVE',            ar: 'نشط' },
+  'agreement_status_EXPIRED':             { en: 'EXPIRED',           ar: 'منتهي' },
+  'agreement_status_TERMINATED':          { en: 'TERMINATED',        ar: 'منهي' },
+
+  // Scope + MOQ + bonuses
+  'scope_CUSTOMER_ONLY':                  { en: 'CUSTOMER ONLY',         ar: 'العميل فقط' },
+  'scope_MASTER_AND_CHILDREN':            { en: 'MASTER + CHILDREN',     ar: 'الرئيسي + الفروع' },
+  'scope_SPECIFIC_CHILDREN':              { en: 'SPECIFIC CHILDREN',     ar: 'فروع مختارة' },
+  'moq_FALLBACK_CATALOG':                 { en: 'FALLBACK CATALOG',      ar: 'العودة للسعر العام' },
+  'moq_BLOCK':                            { en: 'BLOCK',                 ar: 'حظر' },
+  'moq_SPLIT':                            { en: 'SPLIT',                 ar: 'تقسيم' },
+  'auto_renew_badge':                     { en: 'AUTO-RENEW',            ar: 'تجديد تلقائي' },
+  'bonuses_badge':                        { en: '+ BONUSES',             ar: '+ مكافآت' },
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);

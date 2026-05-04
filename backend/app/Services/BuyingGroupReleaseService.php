@@ -32,26 +32,53 @@ final class BuyingGroupReleaseService
      */
     public function release(BuyingGroup $group): array
     {
-        if ($group->isTerminal()) {
-            return ['released' => false, 'orderIds' => [], 'reason' => 'already_terminal'];
-        }
-
-        $accepted = $group->members()->where('status', 'ACCEPTED')->get();
-        if ($accepted->isEmpty()) {
-            return $this->dissolve($group, 'no_accepted_members');
-        }
-        if ($group->acceptedQuantity() < (int) $group->target_quantity) {
-            return $this->dissolve($group, 'threshold_not_met');
-        }
-
-        $product = $group->product;
-        if (!$product) {
-            return $this->dissolve($group, 'product_missing');
-        }
-
-        $shares = $this->apportion->compute($group);
-
+        // BE-2 fix: lock the group row for the duration of the release transaction
+        // so a concurrent admin-release + cron-fire (or two parallel accept→auto-release
+        // paths) cannot produce duplicate child orders. We re-fetch under SELECT FOR UPDATE
+        // and re-check terminal state before any writes.
         $orderIds = [];
+        $result = DB::transaction(function () use ($group, &$orderIds) {
+            $locked = BuyingGroup::where('id', $group->id)->lockForUpdate()->first();
+            if (!$locked) {
+                return ['released' => false, 'orderIds' => [], 'reason' => 'group_missing'];
+            }
+            if ($locked->isTerminal()) {
+                return ['released' => false, 'orderIds' => [], 'reason' => 'already_terminal'];
+            }
+
+            $accepted = $locked->members()->where('status', 'ACCEPTED')->get();
+            if ($accepted->isEmpty()) {
+                $this->dissolveLocked($locked, 'no_accepted_members');
+                return ['released' => false, 'orderIds' => [], 'reason' => 'no_accepted_members'];
+            }
+            if ($locked->acceptedQuantity() < (int) $locked->target_quantity) {
+                $this->dissolveLocked($locked, 'threshold_not_met');
+                return ['released' => false, 'orderIds' => [], 'reason' => 'threshold_not_met'];
+            }
+
+            $product = $locked->product;
+            if (!$product) {
+                $this->dissolveLocked($locked, 'product_missing');
+                return ['released' => false, 'orderIds' => [], 'reason' => 'product_missing'];
+            }
+
+            $shares = $this->apportion->compute($locked);
+            $this->createOrdersFor($locked, $accepted, $product, $shares, $orderIds);
+            return ['released' => true, 'orderIds' => $orderIds];
+        });
+
+        if (($result['released'] ?? false) === true) {
+            $accepted = $group->fresh()->members()->where('status', 'ACCEPTED')->get();
+            $this->notifyOnRelease($group->fresh(), $accepted->pluck('customer_id')->all(), $orderIds);
+        } elseif (in_array($result['reason'] ?? null, ['no_accepted_members', 'threshold_not_met', 'product_missing'], true)) {
+            $this->notifyOnDissolve($group->fresh(), $result['reason']);
+        }
+        return $result;
+    }
+
+    /** Internal: create the N child orders inside the locked transaction. */
+    private function createOrdersFor(BuyingGroup $group, $accepted, $product, array $shares, array &$orderIds): void
+    {
         DB::transaction(function () use ($group, $accepted, $product, $shares, &$orderIds) {
             foreach ($accepted as $m) {
                 $bonusQty = $shares[$m->id] ?? null;
@@ -93,24 +120,33 @@ final class BuyingGroupReleaseService
                 'released_at' => now(),
             ]);
         });
-
-        $this->notifyOnRelease($group, $accepted->pluck('customer_id')->all(), $orderIds);
-
-        return ['released' => true, 'orderIds' => $orderIds];
     }
 
-    /** Mark group as DISSOLVED + notify everyone with a reason. */
+    /** Mark group as DISSOLVED + notify everyone with a reason. (admin path — locks group row) */
     public function dissolve(BuyingGroup $group, string $reason = 'admin_cancel'): array
     {
-        if ($group->isTerminal()) {
-            return ['released' => false, 'orderIds' => [], 'reason' => 'already_terminal'];
+        $result = DB::transaction(function () use ($group, $reason) {
+            $locked = BuyingGroup::where('id', $group->id)->lockForUpdate()->first();
+            if (!$locked || $locked->isTerminal()) {
+                return ['released' => false, 'orderIds' => [], 'reason' => 'already_terminal'];
+            }
+            $this->dissolveLocked($locked, $reason);
+            return ['released' => false, 'orderIds' => [], 'reason' => $reason];
+        });
+
+        if (($result['reason'] ?? null) === $reason) {
+            $this->notifyOnDissolve($group->fresh(), $reason);
         }
+        return $result;
+    }
+
+    /** Internal: flip status to DISSOLVED inside an already-locked transaction. */
+    private function dissolveLocked(BuyingGroup $group, string $reason): void
+    {
         $group->update([
             'status' => 'DISSOLVED',
             'dissolved_at' => now(),
         ]);
-        $this->notifyOnDissolve($group, $reason);
-        return ['released' => false, 'orderIds' => [], 'reason' => $reason];
     }
 
     /** Single supplier notification + per-member notification (with bonus). */
@@ -122,7 +158,7 @@ final class BuyingGroupReleaseService
                 kind: 'buying_group_released',
                 title: 'Buying group released',
                 message: "Group \"{$group->name}\" released " . count($orderIds) . " orders for " . $group->acceptedQuantity() . " × {$group->product?->name}.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['groupId' => $group->id, 'orderIds' => $orderIds],
             ));
         }
@@ -133,7 +169,7 @@ final class BuyingGroupReleaseService
                 kind: 'buying_group_released',
                 title: 'Your buying group order is in!',
                 message: "Group \"{$group->name}\" reached its target. Your portion has been placed with {$group->supplier?->name}.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['groupId' => $group->id],
             ));
         }
@@ -154,7 +190,7 @@ final class BuyingGroupReleaseService
                 kind: 'buying_group_dissolved',
                 title: "Buying group dissolved: {$group->name}",
                 message: $msg,
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['groupId' => $group->id, 'reason' => $reason],
             ));
         }

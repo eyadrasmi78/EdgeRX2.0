@@ -1,0 +1,53 @@
+# Never bake local secrets, dev artifacts, or VCS state into the production image.
+# Anything matched here is excluded from the Docker build context.
+
+# ── secrets ──
+.env
+.env.*
+!.env.example
+storage/*.key
+*.pem
+*.key
+secrets/
+
+# ── VCS ──
+.git
+.gitignore
+.gitattributes
+
+# ── dev / build artifacts ──
+node_modules/
+vendor/
+npm-debug.log
+yarn-error.log
+composer.lock.local
+.phpunit.cache/
+.phpunit.result.cache
+
+# ── tests + dev fixtures ──
+tests/
+phpunit.xml
+phpunit.xml.dist
+
+# ── logs + tmp ──
+storage/logs/*
+!storage/logs/.gitkeep
+storage/framework/cache/data/*
+!storage/framework/cache/data/.gitkeep
+storage/framework/sessions/*
+!storage/framework/sessions/.gitkeep
+storage/framework/views/*
+!storage/framework/views/.gitkeep
+
+# ── editor / OS ──
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# ── docs (kept out of runtime image) ──
+README.md
+*.md
+docs/

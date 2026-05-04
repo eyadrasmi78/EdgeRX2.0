@@ -304,7 +304,7 @@ class BuyingGroupsController extends Controller
                 kind: 'buying_group_invited',
                 title: 'You are invited to a buying group',
                 message: "Join \"{$group->name}\" to pool a bulk order on {$product?->name} and unlock the group discount.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['groupId' => $group->id, 'productId' => $group->product_id],
             ));
         }

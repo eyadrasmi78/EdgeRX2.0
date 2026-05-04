@@ -77,7 +77,7 @@ class PartnershipsController extends Controller
             title: 'New partnership request',
             message: "{$user->name} wants to partner with you" .
                 (!empty($data['productName']) ? " — interested in {$data['productName']}." : '.'),
-            actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+            actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
             data: ['requestId' => $req->id, 'fromAgentId' => $user->id],
         ));
 
@@ -103,7 +103,7 @@ class PartnershipsController extends Controller
                 message: $data['status'] === 'ACCEPTED'
                     ? "Your partnership request was accepted. You can now collaborate on EdgeRX."
                     : "Your partnership request was declined.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['requestId' => $req->id, 'status' => $data['status']],
             ));
         }

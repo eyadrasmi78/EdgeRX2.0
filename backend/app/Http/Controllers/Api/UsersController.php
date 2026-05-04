@@ -27,9 +27,20 @@ class UsersController extends Controller
         return UserResource::collection($query->get());
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $authUser = $request->user();
         $user = User::with('companyDetails', 'teamMembers')->findOrFail($id);
+
+        // Non-admins can only fetch APPROVED counterparties or themselves (CRIT-5).
+        // Pharmacy Masters can additionally fetch their child pharmacies regardless of status.
+        if (!$authUser->isAdmin() && $authUser->id !== $user->id) {
+            $isOwnChild = $authUser->isPharmacyMaster()
+                && $authUser->masterOf()->where('users.id', $user->id)->exists();
+            if (!$isOwnChild && $user->status !== 'APPROVED') {
+                abort(404);
+            }
+        }
         return new UserResource($user);
     }
 
@@ -56,7 +67,7 @@ class UsersController extends Controller
                 kind: $kind,
                 title: $title,
                 message: $message,
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['status' => $data['status']],
             ));
         }

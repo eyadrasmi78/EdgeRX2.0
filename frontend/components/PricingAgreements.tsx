@@ -85,9 +85,9 @@ export const PricingAgreements: React.FC<AgreementsProps> = ({ currentUser }) =>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[a.status]}`}>{a.status.replace(/_/g,' ')}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[a.status]}`}>{t(`agreement_status_${a.status}`)}</span>
                       <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">v{a.version}</span>
-                      {a.autoRenew && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-700">AUTO-RENEW</span>}
+                      {a.autoRenew && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-700">{t('auto_renew_badge')}</span>}
                     </div>
                     <h3 className="font-semibold text-sm text-slate-900 mt-1 flex items-center gap-1.5">
                       <Hash size={12} className="text-slate-400"/>{a.agreementNumber}
@@ -152,10 +152,10 @@ const AgreementDetail: React.FC<{
 
         <div className="p-5 space-y-4 text-sm">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[a.status]}`}>{a.status.replace(/_/g,' ')}</span>
-            {a.autoRenew && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-700">AUTO-RENEW {a.renewNoticeDays}d</span>}
-            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">{a.scope.replace(/_/g,' ')}</span>
-            {a.bonusesApply && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">+ BONUSES</span>}
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[a.status]}`}>{t(`agreement_status_${a.status}`)}</span>
+            {a.autoRenew && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-700">{t('auto_renew_badge')} {a.renewNoticeDays}d</span>}
+            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">{t(`scope_${a.scope}`)}</span>
+            {a.bonusesApply && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">{t('bonuses_badge')}</span>}
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
@@ -163,7 +163,7 @@ const AgreementDetail: React.FC<{
             <KV k={t('supplier')} v={a.supplierName}/>
             <KV k={t('valid_from')} v={a.validFrom}/>
             <KV k={t('valid_to')} v={a.validTo}/>
-            <KV k={t('moq_fallback')} v={a.moqFallbackMode.replace(/_/g,' ')}/>
+            <KV k={t('moq_fallback')} v={t(`moq_${a.moqFallbackMode}`)}/>
             <KV k={t('currency')} v={a.currency}/>
           </div>
 

@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL (BE-5 fix)
+    |--------------------------------------------------------------------------
+    |
+    | The customer-facing SPA URL. Used by every notification's actionUrl.
+    | Read via config('app.frontend_url') — NOT env() — so it survives
+    | `php artisan config:cache` in production.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

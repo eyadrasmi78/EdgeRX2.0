@@ -119,7 +119,7 @@ class OrdersController extends Controller
                 kind: 'order_created',
                 title: 'New order received',
                 message: "{$customer->name} placed an order for {$order->quantity} × {$order->product_name} ({$order->order_number}).",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['orderId' => $order->id, 'orderNumber' => $order->order_number],
             ));
         }
@@ -140,18 +140,37 @@ class OrdersController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        // Suppliers control fulfillment status. Master may confirm receipt / request return on behalf of child.
+        // BE-9 fix: status transitions are role-gated.
+        // - Suppliers control fulfilment lifecycle: In Progress, Shipment OTW, Delivered, Declined, Changes Proposed.
+        // - Customers (and their masters) can ONLY confirm Receipt or request a Return.
+        // - Admins may set anything (override path for support).
         $data = $request->validated();
 
+        $supplierAllowed = ['In Progress', 'Shipment OTW', 'Delivered', 'Declined', 'Changes Proposed', 'Completed'];
+        $customerAllowed = ['Received', 'Completed', 'Return Requested'];
+
         if (isset($data['status']) && $data['status'] !== $order->status) {
-            $order->status = $data['status'];
+            $newStatus = $data['status'];
+            $isSupplier = $user->isSupplier() && $order->supplier_id === $user->id;
+            $isCustomerSide = ($user->isCustomer() && $order->customer_id === $user->id)
+                || ($user->isPharmacyMaster() && $user->ownsPharmacy($order->customer_id));
+            $allowed = $user->isAdmin()
+                ? true
+                : (($isSupplier && in_array($newStatus, $supplierAllowed, true))
+                  || ($isCustomerSide && in_array($newStatus, $customerAllowed, true)));
+            if (!$allowed) {
+                return response()->json([
+                    'message' => "Your role cannot move this order to '{$newStatus}'.",
+                ], 403);
+            }
+            $order->status = $newStatus;
             OrderHistoryLog::create([
                 'order_id' => $order->id,
-                'status' => $data['status'],
+                'status' => $newStatus,
                 'timestamp' => now(),
                 'note' => $data['note'] ?? null,
             ]);
-            if ($data['status'] === 'Declined' && !empty($data['note'])) {
+            if ($newStatus === 'Declined' && !empty($data['note'])) {
                 $order->decline_reason = $data['note'];
             }
         }
@@ -173,7 +192,7 @@ class OrdersController extends Controller
                     kind: 'order_status_changed',
                     title: "Order {$order->order_number} updated",
                     message: "Status is now: {$order->status}." . (!empty($data['note']) ? " Note: {$data['note']}" : ''),
-                    actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                    actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                     data: ['orderId' => $order->id, 'orderNumber' => $order->order_number, 'status' => $order->status],
                 ));
             }
@@ -183,7 +202,7 @@ class OrdersController extends Controller
                 kind: 'order_status_changed',
                 title: "Order {$order->order_number} updated",
                 message: "Status is now: {$order->status}." . (!empty($data['note']) ? " Note: {$data['note']}" : ''),
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['orderId' => $order->id, 'orderNumber' => $order->order_number, 'status' => $order->status],
             ));
         }

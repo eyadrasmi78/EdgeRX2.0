@@ -76,7 +76,7 @@ class SendAgreementRenewalRemindersCommand extends Command
                 kind: 'agreement_renewal_due',
                 title: 'Pricing agreement expires soon',
                 message: $msg,
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['agreementId' => $a->id, 'expiresAt' => $validTo->toDateString()],
             ));
         }
@@ -91,7 +91,7 @@ class SendAgreementRenewalRemindersCommand extends Command
                 kind: 'agreement_expired',
                 title: 'Pricing agreement expired',
                 message: "Agreement {$a->agreement_number} expired today. Future orders will use catalog pricing.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['agreementId' => $a->id],
             ));
         }
@@ -136,7 +136,7 @@ class SendAgreementRenewalRemindersCommand extends Command
                 kind: 'agreement_auto_renew_draft',
                 title: 'Auto-renewal draft created',
                 message: "{$a->agreement_number} expired — a renewal draft {$clone->agreement_number} is ready for your review and send.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['draftAgreementId' => $clone->id],
             ));
         }

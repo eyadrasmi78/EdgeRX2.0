@@ -11,6 +11,18 @@
     <link rel="icon" type="image/png" sizes="any" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
     <link rel="manifest" href="/manifest.json">
+    <script>
+      /* FE-1 fix: suppress Tailwind CDN production-warning console message.
+       * Long-term: migrate to Tailwind CLI build. For now, intercept the one
+       * specific warning so the customer doesn't see it on every page load. */
+      (function () {
+        const _w = window.console.warn;
+        window.console.warn = function (...args) {
+          if (typeof args[0] === 'string' && args[0].indexOf('cdn.tailwindcss.com should not be used in production') !== -1) return;
+          return _w.apply(this, args);
+        };
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
     <style>

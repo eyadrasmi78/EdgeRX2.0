@@ -93,7 +93,7 @@ class AuthController extends Controller
                 kind: 'registration_pending',
                 title: 'New registration pending approval',
                 message: "{$user->name} ({$user->role}) just registered and is awaiting approval.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['userId' => $user->id, 'role' => $user->role],
             ));
         }

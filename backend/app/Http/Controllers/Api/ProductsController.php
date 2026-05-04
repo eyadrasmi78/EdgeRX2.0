@@ -26,8 +26,17 @@ class ProductsController extends Controller
         }
         $data = $this->validateProduct($request);
         $data['id'] = $data['id'] ?? (string) Str::uuid();
-        $data['supplier_id'] = $data['supplier_id'] ?? $user->id;
-        $data['supplier_name'] = $data['supplier_name'] ?? $user->name;
+
+        // BE-12 / CRIT-3 fix: pin supplier_id to the authenticated user.
+        // Suppliers may NOT set a different supplier_id on their products;
+        // only admins may explicitly assign one (e.g. for migrations).
+        if ($user->isAdmin()) {
+            $data['supplier_id']   = $data['supplier_id']   ?? $user->id;
+            $data['supplier_name'] = $data['supplier_name'] ?? $user->name;
+        } else {
+            $data['supplier_id']   = $user->id;
+            $data['supplier_name'] = $user->name;
+        }
         $product = Product::create($data);
         return new ProductResource($product);
     }
@@ -40,6 +49,12 @@ class ProductsController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
         $data = $this->validateProduct($request, partial: true);
+
+        // BE-12 / CRIT-3 fix: a supplier cannot reassign their product to a
+        // different supplier. Only admins may change supplier_id on update.
+        if (!$user->isAdmin()) {
+            unset($data['supplier_id'], $data['supplier_name']);
+        }
         $product->update($data);
         return new ProductResource($product->fresh());
     }

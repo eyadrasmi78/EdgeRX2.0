@@ -99,47 +99,63 @@ class CartController extends Controller
             ? $user->masterOf()->pluck('users.id')->all()
             : [];
 
+        // BE-7 fix: pre-resolve every line's price OUTSIDE the transaction so a
+        // BLOCK-mode rejection produces a real 422 (return-from-closure was
+        // silently swallowed inside DB::transaction and the loop continued).
+        // We build a `resolved` array of [item, customer, priced, bonusQty]
+        // tuples; any DomainException short-circuits with 422 before any
+        // database writes happen.
+        $resolved = [];
+        foreach ($items as $i) {
+            $p = $i->product;
+            if (!$p) continue;
+
+            $onBehalf = $i->on_behalf_of_user_id ?: $user->id;
+            if ($user->isPharmacyMaster()) {
+                if (!in_array($onBehalf, $childIds, true)) continue;
+                $customer = User::find($onBehalf);
+            } else {
+                $customer = $user;
+            }
+            if (!$customer || !$customer->isApproved()) continue;
+
+            $priced = ['unitPrice' => (float) ($p->price ?? 0), 'pricingSource' => 'CATALOG'];
+            if ($p->supplier_id) {
+                try {
+                    $priced = $this->resolver->resolve($customer->id, $p->supplier_id, $p->id, (int) $i->quantity);
+                } catch (\DomainException $e) {
+                    return response()->json([
+                        'message' => "Cannot check out item {$p->name}: " . $e->getMessage(),
+                        'productId' => $p->id,
+                        'reason' => $e->getMessage(),
+                    ], 422);
+                }
+            }
+
+            $applyBonus = $priced['pricingSource'] === 'CATALOG'
+                || (($priced['pricingAgreementId'] ?? null)
+                    && PricingAgreement::find($priced['pricingAgreementId'])?->bonuses_apply);
+            $bonusQty = null;
+            if ($applyBonus && $p->bonus_threshold && $i->quantity >= $p->bonus_threshold) {
+                $bonusQty = $p->bonus_type === 'percentage'
+                    ? (int) floor($i->quantity * ($p->bonus_value / 100))
+                    : (int) $p->bonus_value;
+            }
+
+            $resolved[] = compact('i', 'p', 'customer', 'priced', 'bonusQty');
+        }
+
+        if (empty($resolved)) {
+            return response()->json(['message' => 'No checkoutable items in cart.'], 422);
+        }
+
         $orders = [];
         $supplierNotifications = []; // dedupe per supplier
 
-        DB::transaction(function () use ($items, $user, $childIds, &$orders, &$supplierNotifications) {
-            foreach ($items as $i) {
-                $p = $i->product;
-                if (!$p) continue;
-
-                // Resolve customer (the pharmacy the order is FOR)
-                $onBehalf = $i->on_behalf_of_user_id ?: $user->id;
-                if ($user->isPharmacyMaster()) {
-                    if (!in_array($onBehalf, $childIds, true)) continue; // skip orphaned items
-                    $customer = User::find($onBehalf);
-                } else {
-                    $customer = $user;
-                }
-                if (!$customer || !$customer->isApproved()) continue;
-
-                // Resolve contract pricing (Phase D2). Falls back to catalog if no agreement applies.
-                $priced = ['unitPrice' => (float) ($p->price ?? 0), 'pricingSource' => 'CATALOG'];
-                if ($p->supplier_id) {
-                    try {
-                        $priced = $this->resolver->resolve($customer->id, $p->supplier_id, $p->id, (int) $i->quantity);
-                    } catch (\DomainException $e) {
-                        // BLOCK mode rejects below-MOQ; bubble a clear 422 to the SPA
-                        return response()->json([
-                            'message' => "Cannot check out item {$p->name}: " . $e->getMessage(),
-                        ], 422);
-                    }
-                }
-
-                // Bonus rules: only apply if (a) catalog pricing OR (b) agreement.bonuses_apply = true
-                $bonusQty = null;
-                $applyBonus = $priced['pricingSource'] === 'CATALOG'
-                    || (($priced['pricingAgreementId'] ?? null)
-                        && PricingAgreement::find($priced['pricingAgreementId'])?->bonuses_apply);
-                if ($applyBonus && $p->bonus_threshold && $i->quantity >= $p->bonus_threshold) {
-                    $bonusQty = $p->bonus_type === 'percentage'
-                        ? (int) floor($i->quantity * ($p->bonus_value / 100))
-                        : (int) $p->bonus_value;
-                }
+        DB::transaction(function () use ($resolved, $user, &$orders, &$supplierNotifications) {
+            foreach ($resolved as $r) {
+                $i = $r['i']; $p = $r['p']; $customer = $r['customer'];
+                $priced = $r['priced']; $bonusQty = $r['bonusQty'];
 
                 $order = Order::create([
                     'id' => (string) Str::uuid(),
@@ -195,7 +211,7 @@ class CartController extends Controller
                 message: $count === 1
                     ? "{$first->customer_name} placed an order for {$first->quantity} × {$first->product_name} ({$first->order_number})."
                     : "{$count} new orders just landed in your queue.",
-                actionUrl: rtrim(env('FRONTEND_URL', 'http://localhost'), '/') . '/',
+                actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['orderIds' => array_column($supplierOrders, 'id')],
             ));
         }

@@ -108,14 +108,14 @@ export const Transfers: React.FC<TransfersProps> = ({ currentUser }) => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[tr.status] || 'bg-gray-100 text-gray-700'}`}>{tr.status.replace(/_/g, ' ')}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[tr.status] || 'bg-gray-100 text-gray-700'}`}>{t(`transfer_status_${tr.status}`)}</span>
                       <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-200 text-slate-700 flex items-center gap-1">
                         {tr.discoveryMode === 'MARKETPLACE' ? <Globe2 size={10}/> : <UserCheck size={10}/>}
-                        {tr.discoveryMode}
+                        {t(`discovery_${tr.discoveryMode}`)}
                       </span>
                       {tr.items.some(i => i.isColdChain) && (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 flex items-center gap-1">
-                          <Snowflake size={10}/> COLD
+                          <Snowflake size={10}/> {t('cold_chain_badge')}
                         </span>
                       )}
                     </div>
@@ -196,9 +196,9 @@ const TransferDetail: React.FC<{
 
         <div className="p-5 space-y-4 text-sm">
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[tr.status] || 'bg-gray-100 text-gray-700'}`}>{tr.status.replace(/_/g, ' ')}</span>
-            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">{tr.discoveryMode}</span>
-            {tr.escrowStatus !== 'NONE' && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 flex items-center gap-1"><Lock size={10}/> {t('escrow')}: {tr.escrowStatus}</span>}
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${STATUS_COLORS[tr.status] || 'bg-gray-100 text-gray-700'}`}>{t(`transfer_status_${tr.status}`)}</span>
+            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">{t(`discovery_${tr.discoveryMode}`)}</span>
+            {tr.escrowStatus !== 'NONE' && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 flex items-center gap-1"><Lock size={10}/> {t('escrow')}: {t(`escrow_${tr.escrowStatus}`)}</span>}
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
@@ -220,15 +220,15 @@ const TransferDetail: React.FC<{
                 <div key={i.id} className="bg-slate-50 px-3 py-2 rounded text-xs">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-slate-900">{i.productName}</span>
-                    {i.isColdChain && <span className="bg-cyan-100 text-cyan-800 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><Snowflake size={9}/>COLD</span>}
+                    {i.isColdChain && <span className="bg-cyan-100 text-cyan-800 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><Snowflake size={9}/>{t('cold_chain_badge')}</span>}
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                       i.qcStatus === 'PASSED' ? 'bg-emerald-100 text-emerald-800' :
                       i.qcStatus === 'FAILED' ? 'bg-rose-100 text-rose-800' :
                       'bg-amber-100 text-amber-800'
-                    }`}>{i.qcStatus}</span>
+                    }`}>{t(`qc_status_${i.qcStatus}`)}</span>
                   </div>
                   <p className="text-slate-600 mt-0.5">
-                    {i.quantity} units · batch {i.batchNumber}{i.lotNumber ? ` · lot ${i.lotNumber}` : ''} · exp {i.expiryDate}
+                    {i.quantity} {t('units_label')} · {t('batch_label')} {i.batchNumber}{i.lotNumber ? ` · ${t('lot_label')} ${i.lotNumber}` : ''} · {t('exp_label')} {i.expiryDate}
                     {i.gs1Barcode && <> · <Hash size={9} className="inline"/>{i.gs1Barcode}</>}
                   </p>
                 </div>
