@@ -27,11 +27,13 @@ class OrderResource extends JsonResource
             'status' => $this->status,
             'declineReason' => $this->decline_reason,
             'date' => optional($this->date)->toIso8601String(),
-            'statusHistory' => $this->statusHistory->map(fn ($l) => [
+            // BE-25 fix: only emit statusHistory when relation is eager-loaded.
+            // Prevents N+1 queries on list endpoints.
+            'statusHistory' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($l) => [
                 'status' => $l->status,
                 'timestamp' => optional($l->timestamp)->toIso8601String(),
                 'note' => $l->note,
-            ])->values(),
+            ])->values(), []),
             'returnRequested' => (bool) $this->return_requested,
             'returnReason' => $this->return_reason,
             'returnNote' => $this->return_note,

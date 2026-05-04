@@ -38,6 +38,9 @@ export const Register: React.FC<RegisterProps> = ({ onNavigateToLogin }) => {
   const [fileDataUrls, setFileDataUrls] = useState<{ [key: string]: string }>({});
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  // FE-14 fix: disable submit while the registration request is in flight
+  // so a user can't double-submit and create duplicate pending accounts.
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const inputClasses = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2.5 px-3 bg-slate-50 focus:bg-white focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-colors";
 
@@ -56,7 +59,7 @@ export const Register: React.FC<RegisterProps> = ({ onNavigateToLogin }) => {
     }
 
     const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).slice(2, 11),
       email: formData.email,
       password: formData.password,
       name: formData.companyName,
@@ -81,14 +84,26 @@ export const Register: React.FC<RegisterProps> = ({ onNavigateToLogin }) => {
       }
     };
 
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const result = await DataService.registerUser(newUser);
       setMessage(result.message || (result.success ? 'Registration successful.' : 'Registration failed.'));
       setIsSuccess(result.success);
       if (result.success) setTimeout(() => onNavigateToLogin(), 4000);
     } catch (err: any) {
-      setMessage(err?.message || 'Registration failed.');
+      // FE-17 fix: surface field-level validation errors when present.
+      const fields = err?.data?.errors;
+      if (fields && typeof fields === 'object') {
+        const first = (Object.values(fields) as any[])[0];
+        const msg = Array.isArray(first) ? first[0] : String(first);
+        setMessage(msg || err?.message || 'Registration failed.');
+      } else {
+        setMessage(err?.message || 'Registration failed.');
+      }
       setIsSuccess(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -169,7 +184,7 @@ export const Register: React.FC<RegisterProps> = ({ onNavigateToLogin }) => {
               )}
             </div>
             {message && !isSuccess && <div className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded">{message}</div>}
-            <div><button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors">{t('submit_app')}</button></div>
+            <div><button type="submit" disabled={isSubmitting} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">{isSubmitting ? '…' : t('submit_app')}</button></div>
           </form>
         )}
       </div>

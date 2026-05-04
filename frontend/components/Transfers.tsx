@@ -346,8 +346,24 @@ const CreateTransferModal: React.FC<{
   const suppliers = users.filter(u => u.role === 'SUPPLIER' || u.role === 'FOREIGN_SUPPLIER');
   const customers = users.filter(u => u.role === 'CUSTOMER' && u.id !== currentUser.id);
 
+  /**
+   * FE-16 fix: client-side validation before submitting. Saves a round trip
+   * for common errors (missing required selects, qty <= 0, expiry in past).
+   * FE-17 fix: when the server does return 422 with field errors, we display
+   * them per-field below by collapsing into a single user-friendly string.
+   */
   const submit = async () => {
-    setBusy(true); setErr(null);
+    setErr(null);
+    if (!supplierId) return setErr(t('local_supplier') + ': ' + t('select'));
+    if (discoveryMode === 'DIRECT' && !targetUserId) return setErr(t('target_pharmacy') + ': ' + t('select'));
+    if (!productId) return setErr(t('product') + ': ' + t('select'));
+    if (!quantity || quantity < 1) return setErr(t('quantity') + ' ≥ 1');
+    if (unitPriceRefund < 0 || unitPriceResale < 0) return setErr('Price ≥ 0');
+    if (!batch) return setErr(t('batch_number'));
+    if (!expiryDate) return setErr(t('expiry_date'));
+    if (new Date(expiryDate) <= new Date()) return setErr(t('expiry_date') + ' > today');
+
+    setBusy(true);
     const r = await DataService.createTransfer({
       discoveryMode,
       supplierId,
@@ -361,7 +377,12 @@ const CreateTransferModal: React.FC<{
     });
     setBusy(false);
     if (!r.success) {
-      const msgs = r.errors ? Object.values(r.errors).flat().join('; ') : null;
+      // Surface field-level validation messages cleanly
+      const msgs = r.errors
+        ? Object.entries(r.errors)
+            .map(([field, errs]: any) => `${field}: ${Array.isArray(errs) ? errs[0] : errs}`)
+            .join('  ·  ')
+        : null;
       setErr(msgs || r.message || t('create_failed'));
     } else {
       await onCreated();

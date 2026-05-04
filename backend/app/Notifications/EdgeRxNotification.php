@@ -9,6 +9,13 @@ use Illuminate\Notifications\Notification;
 /**
  * Single notification class fan-out to both DB (in-app bell) and mail channels.
  * One class kept deliberately simple — for the demo, all 9 event types share this shape.
+ *
+ * Note on async: we deliberately do NOT implement ShouldQueue because the
+ * production deploy uses the `database` queue driver but no dedicated queue
+ * worker. Queued notifications would sit until the hourly scheduler picks
+ * them up. Instead, we use the `$email` constructor flag — set to false
+ * for fan-out paths (admin notification on registration) so only the
+ * cheap DB row is written, no SMTP latency.
  */
 class EdgeRxNotification extends Notification
 {

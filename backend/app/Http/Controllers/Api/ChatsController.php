@@ -53,12 +53,19 @@ class ChatsController extends Controller
         ]);
         ChatRoom::firstOrCreate(['order_id' => $orderId]);
         $user = $request->user();
+
+        // BE-22 fix: strip HTML tags + control chars before persistence so
+        // even if a downstream consumer renders raw, no script can run.
+        // The React SPA also escapes via JSX text — this is defense-in-depth.
+        $clean = strip_tags($data['text']);
+        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $clean);
+
         $msg = ChatMessage::create([
             'id' => (string) Str::uuid(),
             'order_id' => $orderId,
             'sender_id' => $user->id,
             'sender_name' => $user->name,
-            'text' => $data['text'],
+            'text' => $clean,
             'timestamp' => now(),
         ]);
         // event(new \App\Events\MessageSent($msg));

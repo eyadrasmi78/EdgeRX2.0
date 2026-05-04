@@ -371,7 +371,7 @@ export const SupplierPortal: React.FC<SupplierPortalProps> = ({
     e.preventDefault();
     if (userModal.mode === 'create') {
         const newMember: TeamMember = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: Math.random().toString(36).slice(2, 11),
             name: userFormData.name,
             email: userFormData.email,
             phone: userFormData.phone,
@@ -423,7 +423,7 @@ export const SupplierPortal: React.FC<SupplierPortalProps> = ({
           setEditingProduct({ ...product });
       } else {
           setEditingProduct({
-              id: `p-${Math.random().toString(36).substr(2, 6)}`,
+              id: `p-${Math.random().toString(36).slice(2, 8)}`,
               name: '',
               category: ProductCategory.MEDICINE,
               categoryLevel1: 'Medicine',

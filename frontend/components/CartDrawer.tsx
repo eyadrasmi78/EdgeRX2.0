@@ -109,13 +109,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-end">
+    /* FE-5 fix: drawer slides in from the inline-end edge regardless of LTR/RTL.
+       In RTL, that's the LEFT side of the screen; in LTR, the RIGHT. We use
+       `flex justify-start` for RTL and `justify-end` for LTR so the drawer
+       lands on the correct visual edge. */
+    <div className={`fixed inset-0 z-[60] flex ${dir === 'rtl' ? 'justify-start' : 'justify-end'}`}>
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      <div className={`relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col transform transition-transform duration-300 ${dir === 'rtl' ? 'translate-x-0' : ''}`}>
+      <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col transition-transform duration-300">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-2">
             <ShoppingCart className="text-teal-600" size={20} />
@@ -190,6 +194,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <span>${totalCost.toFixed(2)}</span>
               </div>
             </div>
+
+            {/* FE-7 fix: surface that contract pricing may apply at checkout.
+                The exact resolved price is computed server-side; this banner
+                tells the customer their final total may be lower than shown. */}
+            <p className="text-xs text-teal-700 text-center mb-2 bg-teal-50 border border-teal-200 p-2 rounded">
+              🔒 {t('contract_pricing_hint')}
+            </p>
 
             <p className="text-xs text-gray-500 text-center mb-4 bg-yellow-50 p-2 rounded text-yellow-700">
               {t('requests_grouped')}

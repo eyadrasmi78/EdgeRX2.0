@@ -181,17 +181,28 @@ class TransfersController extends Controller
         return new TransferRequestResource($t);
     }
 
-    /** POST /api/transfers/{id}/cancel — A or supplier cancels (pre-intake only). */
+    /** POST /api/transfers/{id}/cancel — A, B, supplier, or admin cancels (pre-intake only). */
     public function cancel(Request $request, $id)
     {
         $data = $request->validate(['reason' => 'required|string|max:500']);
         $user = $request->user();
         $t = TransferRequest::findOrFail($id);
 
-        $isSource    = $user->id === $t->source_user_id;
-        $isSupplier  = $user->id === $t->supplier_id;
-        $isAdmin     = $user->isAdmin();
-        if (!($isSource || $isSupplier || $isAdmin)) abort(403, 'Forbidden.');
+        // BE-20 / C-1 fix: target (B) can cancel before payment confirmation,
+        // and a master can cancel on behalf of either A or B child pharmacy.
+        $isSource     = $user->id === $t->source_user_id;
+        $isTarget     = $user->id === $t->target_user_id;
+        $isSourceMaster = $user->isPharmacyMaster()
+            && $t->source_user_id
+            && $user->masterOf()->where('users.id', $t->source_user_id)->exists();
+        $isTargetMaster = $user->isPharmacyMaster()
+            && $t->target_user_id
+            && $user->masterOf()->where('users.id', $t->target_user_id)->exists();
+        $isSupplier   = $user->id === $t->supplier_id;
+        $isAdmin      = $user->isAdmin();
+        if (!($isSource || $isTarget || $isSourceMaster || $isTargetMaster || $isSupplier || $isAdmin)) {
+            abort(403, 'Forbidden.');
+        }
 
         try {
             $t = $this->service->cancel($t, $user, $data['reason']);

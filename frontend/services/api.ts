@@ -41,6 +41,32 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * FE-3 fix: global 401 handler. App.tsx calls subscribeUnauthorized() on mount
+ * to register a callback that fires whenever any API call returns 401 — typically
+ * because the session expired mid-use. The handler clears local state and
+ * forces the user back to the login screen instead of leaving the SPA in a
+ * "logged in" UI that silently fails on every action.
+ */
+type UnauthorizedHandler = () => void;
+let _unauthHandlers: UnauthorizedHandler[] = [];
+export function subscribeUnauthorized(fn: UnauthorizedHandler): () => void {
+  _unauthHandlers.push(fn);
+  return () => { _unauthHandlers = _unauthHandlers.filter(h => h !== fn); };
+}
+let _unauthFiredAt = 0;
+function fireUnauthorized() {
+  // Debounce — many parallel cache refreshes can all 401 at once on session
+  // expiry. We only want the redirect to fire once per session-loss event.
+  const now = Date.now();
+  if (now - _unauthFiredAt < 2000) return;
+  _unauthFiredAt = now;
+  csrfPrimed = false; // re-prime CSRF on next mutation after re-login
+  for (const h of _unauthHandlers) {
+    try { h(); } catch {}
+  }
+}
+
 interface RequestOpts {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
@@ -90,6 +116,11 @@ export async function apiRequest<T = any>(path: string, opts: RequestOpts = {}):
   }
 
   if (!resp.ok) {
+    // FE-3: surface a global 401 event so the SPA can redirect to login.
+    // Skip on /auth/login itself (genuine bad credentials) — caller path-checks.
+    if (resp.status === 401 && !path.startsWith('/auth/login')) {
+      fireUnauthorized();
+    }
     const msg = (data && (data.message || data.error)) || resp.statusText;
     throw new ApiError(msg, resp.status, data);
   }

@@ -217,9 +217,17 @@ class BuyingGroupsController extends Controller
         $m = $group->members()->where('customer_id', $user->id)->firstOrFail();
         $m->update(['status' => 'DECLINED']);
 
-        // If the remaining accepted qty no longer meets threshold and only declines remain, dissolve.
+        // C-3 fix: handle both branches after a decline:
+        //   1. Remaining members all accepted + threshold met → release
+        //   2. No accepted members left, OR threshold can't be met regardless
+        //      of pending COMMITTED → dissolve
         $group->refresh();
-        if ($group->allMembersAccepted() && $group->thresholdMet()) {
+        $remainingActive = $group->members()->whereIn('status', ['INVITED', 'COMMITTED', 'ACCEPTED'])->count();
+        $accepted = $group->members()->where('status', 'ACCEPTED')->exists();
+
+        if ($remainingActive === 0 && !$accepted) {
+            $this->release->dissolve($group, 'all_members_declined');
+        } elseif ($group->allMembersAccepted() && $group->thresholdMet()) {
             $this->release->release($group);
         }
 

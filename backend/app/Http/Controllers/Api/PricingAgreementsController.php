@@ -166,7 +166,13 @@ class PricingAgreementsController extends Controller
         if ($a->status !== 'PENDING_CUSTOMER') abort(422, 'Not awaiting customer signature.');
 
         $data = $request->validate([
-            'signedPdfPath' => 'required|string|max:1000',
+            // C-2 fix: signedPdfPath must look like an upload path or absolute URL,
+            // not arbitrary text. We don't yet verify the file exists in storage
+            // (depends on uploads pipeline) but we shape-validate.
+            'signedPdfPath' => [
+                'required', 'string', 'max:1000',
+                'regex:#^(/uploads/|/storage/|https?://).+\.(pdf|PDF)$#',
+            ],
         ]);
 
         $a->update([
@@ -258,7 +264,12 @@ class PricingAgreementsController extends Controller
         try {
             $result = $this->resolver->resolve($forUserId, $supplierId, $product->id, (int) $data['quantity']);
         } catch (\DomainException $e) {
-            return response()->json(['blocked' => true, 'reason' => $e->getMessage()], 422);
+            // C-7 fix: return the standard {message, errors} shape so SPA error
+            // handling is uniform across endpoints.
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['quantity' => [$e->getMessage()]],
+            ], 422);
         }
         return $result;
     }

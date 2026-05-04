@@ -86,7 +86,9 @@ class AuthController extends Controller
             CompanyDetails::create(CompanyDetailsPayload::fromRequest($data['companyDetails'], $user->id));
         }
 
-        // Fan-out: ping every admin so they see the new pending registration
+        // BE-29 fix: fan-out to admins is bell-only (email = false). Admins
+        // see the pending registration immediately on their bell; we don't
+        // block the request on N SMTP round trips.
         $admins = User::where('role', 'ADMIN')->get();
         foreach ($admins as $admin) {
             $admin->notify(new \App\Notifications\EdgeRxNotification(
@@ -95,6 +97,7 @@ class AuthController extends Controller
                 message: "{$user->name} ({$user->role}) just registered and is awaiting approval.",
                 actionUrl: rtrim(config('app.frontend_url'), '/') . '/',
                 data: ['userId' => $user->id, 'role' => $user->role],
+                email: false,
             ));
         }
 
@@ -117,7 +120,11 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['user' => null], 200);
+            // C-8 fix: return 401 (not 200+null) so SPA can react to session
+            // expiry uniformly. Belt-and-braces: route is already gated by
+            // auth:sanctum, but if middleware is bypassed for any reason we
+            // still respond correctly.
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         // Eager-load relations the SPA needs: company details + team members + (for masters)

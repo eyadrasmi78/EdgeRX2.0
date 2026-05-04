@@ -78,12 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/partnerships/{id}',    [PartnershipsController::class, 'update']);
 
     // Pharmacy Master groups (Phase A — Feature 1)
-    // /me/pharmacies returns the current master's children (or [] for non-masters)
-    Route::get('/me/pharmacies', function (\Illuminate\Http\Request $r) {
-        $u = $r->user();
-        if (!$u->isPharmacyMaster()) return response()->json([]);
-        return \App\Http\Resources\UserResource::collection($u->masterOf()->get());
-    });
+    Route::get('/me/pharmacies', [PharmacyGroupsController::class, 'mine']);
     // Admin CRUD
     Route::middleware('role:ADMIN')->group(function () {
         Route::get('/admin/pharmacy-groups',                                  [PharmacyGroupsController::class, 'index']);
@@ -109,33 +104,37 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/buying-groups/{id}/dissolve',             [BuyingGroupsController::class, 'adminDissolve']);
     });
 
-    // Pricing Agreements (Phase D2)
+    // Pricing Agreements (Phase D2) — BE-39: rate-limited on mutating endpoints
     Route::get('/pricing-agreements',                       [PricingAgreementsController::class, 'index']);
     Route::get('/pricing-agreements/{id}',                  [PricingAgreementsController::class, 'show']);
-    Route::post('/pricing-agreements',                      [PricingAgreementsController::class, 'store']);
-    Route::post('/pricing-agreements/{id}/send',            [PricingAgreementsController::class, 'sendToCustomer']);
-    Route::post('/pricing-agreements/{id}/sign',            [PricingAgreementsController::class, 'customerSign']);
-    Route::post('/pricing-agreements/{id}/terminate',       [PricingAgreementsController::class, 'terminate']);
-    Route::post('/pricing/quote',                           [PricingAgreementsController::class, 'quote']);
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('/pricing-agreements',                      [PricingAgreementsController::class, 'store']);
+        Route::post('/pricing-agreements/{id}/send',            [PricingAgreementsController::class, 'sendToCustomer']);
+        Route::post('/pricing-agreements/{id}/sign',            [PricingAgreementsController::class, 'customerSign']);
+        Route::post('/pricing-agreements/{id}/terminate',       [PricingAgreementsController::class, 'terminate']);
+        Route::post('/pricing/quote',                           [PricingAgreementsController::class, 'quote']);
+    });
     Route::middleware('role:ADMIN')->group(function () {
         Route::post('/admin/pricing-agreements/{id}/approve', [PricingAgreementsController::class, 'adminApprove']);
         Route::post('/admin/pricing-agreements/{id}/reject',  [PricingAgreementsController::class, 'adminReject']);
     });
 
-    // Pharmacy-to-pharmacy Transfers (Phase D1)
+    // Pharmacy-to-pharmacy Transfers (Phase D1) — BE-39: rate-limited on mutating endpoints
     Route::get('/transfers',                          [TransfersController::class, 'index']);
     Route::get('/transfers/{id}',                     [TransfersController::class, 'show']);
-    Route::post('/transfers',                         [TransfersController::class, 'store']);
-    Route::post('/transfers/{id}/supplier/accept',    [TransfersController::class, 'supplierAccept']);
-    Route::post('/transfers/{id}/supplier/reject',    [TransfersController::class, 'supplierReject']);
-    Route::post('/transfers/{id}/target/confirm',     [TransfersController::class, 'targetConfirm']);
-    Route::post('/transfers/{id}/intake',             [TransfersController::class, 'intake']);
-    Route::post('/transfers/{id}/qc/start',           [TransfersController::class, 'qcStart']);
-    Route::post('/transfers/{id}/qc/pass',            [TransfersController::class, 'qcPass']);
-    Route::post('/transfers/{id}/qc/fail',            [TransfersController::class, 'qcFail']);
-    Route::post('/transfers/{id}/payment/confirm',    [TransfersController::class, 'confirmPayment']);
-    Route::post('/transfers/{id}/complete',           [TransfersController::class, 'complete']);
-    Route::post('/transfers/{id}/cancel',             [TransfersController::class, 'cancel']);
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('/transfers',                         [TransfersController::class, 'store']);
+        Route::post('/transfers/{id}/supplier/accept',    [TransfersController::class, 'supplierAccept']);
+        Route::post('/transfers/{id}/supplier/reject',    [TransfersController::class, 'supplierReject']);
+        Route::post('/transfers/{id}/target/confirm',     [TransfersController::class, 'targetConfirm']);
+        Route::post('/transfers/{id}/intake',             [TransfersController::class, 'intake']);
+        Route::post('/transfers/{id}/qc/start',           [TransfersController::class, 'qcStart']);
+        Route::post('/transfers/{id}/qc/pass',            [TransfersController::class, 'qcPass']);
+        Route::post('/transfers/{id}/qc/fail',            [TransfersController::class, 'qcFail']);
+        Route::post('/transfers/{id}/payment/confirm',    [TransfersController::class, 'confirmPayment']);
+        Route::post('/transfers/{id}/complete',           [TransfersController::class, 'complete']);
+        Route::post('/transfers/{id}/cancel',             [TransfersController::class, 'cancel']);
+    });
     Route::get('/transfers/{id}/audit',               [TransfersController::class, 'audit']);
 
     // Notifications

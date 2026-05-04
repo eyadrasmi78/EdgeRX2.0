@@ -38,7 +38,7 @@ final class PriceResolver
         }
         $catalogPrice = (float) $product->price;
 
-        $agreementItem = $this->findActiveAgreementItem($customerId, $supplierId, $productId);
+        $agreementItem = $this->findActiveAgreementItem($customerId, $supplierId, $productId, $quantity);
 
         if (!$agreementItem) {
             return $this->catalogResult($catalogPrice, $quantity);
@@ -113,13 +113,23 @@ final class PriceResolver
     /**
      * Find a pricing_agreement_item belonging to an ACTIVE agreement that
      * applies to (customer + product + supplier).
+     *
+     * BE-16 fix: when multiple agreements apply, return the CHEAPEST line
+     * for the requested quantity (customer always gets the best deal they
+     * legally have access to).
+     *
+     * BE-17 fix: single SQL join across pricing_agreements + items so we
+     * don't loop and run one query per agreement candidate.
      */
-    private function findActiveAgreementItem(string $customerId, string $supplierId, string $productId): ?PricingAgreementItem
+    private function findActiveAgreementItem(string $customerId, string $supplierId, string $productId, int $quantity = 1): ?PricingAgreementItem
     {
         $today = now()->toDateString();
 
-        // Candidate agreements: active, in-window, supplier matches
-        $candidates = PricingAgreement::where('status', 'ACTIVE')
+        // Single eager-loaded query: pull all candidate agreement+items in one round trip
+        $candidates = PricingAgreement::with(['items' => function ($q) use ($productId) {
+                $q->where('product_id', $productId);
+            }])
+            ->where('status', 'ACTIVE')
             ->where('supplier_id', $supplierId)
             ->whereDate('valid_from', '<=', $today)
             ->whereDate('valid_to',   '>=', $today)
@@ -130,21 +140,24 @@ final class PriceResolver
             })
             ->get();
 
-        // Filter to those that actually apply to this user (scope-aware)
         $applicable = $candidates->filter(fn(PricingAgreement $a) => $a->appliesTo($customerId));
         if ($applicable->isEmpty()) return null;
 
-        // Among applicable agreements, find the one with this product
+        // Collect every (agreement, item) pair where the item exists and pick
+        // the one with the lowest priceForQuantity at the requested qty.
+        $best = null; $bestPrice = null;
         foreach ($applicable as $a) {
-            $item = PricingAgreementItem::where('pricing_agreement_id', $a->id)
-                ->where('product_id', $productId)
-                ->first();
-            if ($item) {
-                $item->setRelation('agreement', $a);
-                return $item;
+            foreach ($a->items as $item) {
+                if ($item->product_id !== $productId) continue;
+                $p = $item->priceForQuantity($quantity);
+                if ($bestPrice === null || $p < $bestPrice) {
+                    $best = $item;
+                    $best->setRelation('agreement', $a);
+                    $bestPrice = $p;
+                }
             }
         }
-        return null;
+        return $best;
     }
 
     private function catalogResult(float $catalogPrice, int $qty): array

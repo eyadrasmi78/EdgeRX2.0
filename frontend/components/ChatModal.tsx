@@ -17,15 +17,48 @@ export const ChatModal: React.FC<ChatModalProps> = ({ order, currentUser, onClos
   const [inputText, setInputText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * FE-9 fix: ChatModal polling now respects document visibility and uses
+   * exponential backoff on errors. When the tab is hidden we suspend polling
+   * entirely; when an HTTP call fails we double the interval (capped at 30s)
+   * so we don't hammer the server during outages. Resumes immediately when
+   * the tab becomes visible again.
+   */
   useEffect(() => {
     let cancelled = false;
-    const poll = async () => {
-      const msgs = await DataService.refreshChat(order.id);
-      if (!cancelled) setMessages(msgs);
+    let timer: any = null;
+    let interval = 2000;
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (document.visibilityState !== 'visible') {
+        timer = setTimeout(tick, 5000); // re-check tab state
+        return;
+      }
+      try {
+        const msgs = await DataService.refreshChat(order.id);
+        if (!cancelled) setMessages(msgs);
+        interval = 2000; // reset on success
+      } catch {
+        interval = Math.min(interval * 2, 30000);
+      }
+      if (!cancelled) timer = setTimeout(tick, interval);
     };
-    poll();
-    const interval = setInterval(poll, 2000);
-    return () => { cancelled = true; clearInterval(interval); };
+
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && !cancelled) {
+        clearTimeout(timer);
+        interval = 2000;
+        tick();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    tick();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [order.id]);
 
   useEffect(() => {
@@ -39,7 +72,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ order, currentUser, onClos
     if (!inputText.trim()) return;
 
     const newMessage: ChatMessage = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: Math.random().toString(36).slice(2, 11),
         senderId: currentUser.id,
         senderName: currentUser.name,
         text: inputText,

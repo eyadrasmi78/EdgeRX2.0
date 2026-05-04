@@ -133,7 +133,14 @@ const AgreementDetail: React.FC<{
   act: (label: string, fn: () => Promise<any>) => Promise<void>;
 }> = ({ a, currentUser, onClose, busy, act }) => {
   const { t } = useLanguage();
-  const isCustomer = currentUser.id === a.customerId;
+  // FE-6 fix: a Pharmacy Master signing an agreement on behalf of one of their
+  // child pharmacies should be treated as the customer side. Without this check,
+  // the master sees the agreement but cannot counter-sign it because their id
+  // doesn't match a.customerId.
+  const isMasterOwner = currentUser.role === 'PHARMACY_MASTER'
+    && Array.isArray((currentUser as any).childPharmacies)
+    && (currentUser as any).childPharmacies.some((c: any) => c.id === a.customerId);
+  const isCustomer = currentUser.id === a.customerId || isMasterOwner;
   const isSupplier = currentUser.id === a.supplierId;
   const isAdmin = currentUser.role === 'ADMIN';
   const [signedPath, setSignedPath] = useState('');

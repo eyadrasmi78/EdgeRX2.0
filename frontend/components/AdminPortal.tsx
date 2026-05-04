@@ -279,7 +279,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newId = Math.random().toString(36).substr(2, 9);
+    const newId = Math.random().toString(36).slice(2, 11);
     let companyDetails = { address: createFormData.address, website: createFormData.website } as any;
 
     if (createFormData.role === UserRole.FOREIGN_SUPPLIER) {
@@ -357,7 +357,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
 
       if (userModal.mode === 'create') {
           const newMember: TeamMember = {
-              id: Math.random().toString(36).substr(2, 9),
+              id: Math.random().toString(36).slice(2, 11),
               name: userFormData.name,
               email: userFormData.email,
               phone: userFormData.phone,

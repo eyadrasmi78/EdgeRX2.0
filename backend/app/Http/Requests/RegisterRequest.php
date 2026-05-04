@@ -21,7 +21,7 @@ class RegisterRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|string|max:255|unique:users,email|unique:team_members,email',
-            'password' => 'required|string|min:4|max:255',
+            'password' => 'required|string|min:8|max:255',
             'phone' => 'nullable|string|max:64',
             'role' => 'required|in:CUSTOMER,SUPPLIER,FOREIGN_SUPPLIER',
             'companyDetails' => 'nullable|array',

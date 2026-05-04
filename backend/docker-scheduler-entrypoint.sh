@@ -25,14 +25,15 @@ until php -r "
 \$dsn = 'pgsql:host=' . getenv('DB_HOST') . ';port=' . getenv('DB_PORT') . ';dbname=' . getenv('DB_DATABASE') . ';sslmode=' . (getenv('DB_SSLMODE') ?: 'require');
 try {
     \$pdo = new PDO(\$dsn, getenv('DB_USERNAME'), getenv('DB_PASSWORD'), [PDO::ATTR_TIMEOUT => 5]);
-    // Check that buying_groups exists — that's the latest migration. If it's there,
-    // the backend has migrated and we're safe to start scheduling.
-    \$row = \$pdo->query(\"SELECT to_regclass('public.buying_groups') AS t\")->fetch(PDO::FETCH_ASSOC);
-    if (!\$row['t']) {
-        echo '  schema not ready yet (no buying_groups table)' . PHP_EOL;
+    // BE-28 fix: probe the LATEST migration's table (pricing_agreements from
+    // Phase D2, plus the BE-10 cascade-restrict migration). If both are
+    // present, the backend has fully migrated and we can start the scheduler.
+    \$row = \$pdo->query(\"SELECT to_regclass('public.pricing_agreements') AS pa, to_regclass('public.transfer_requests') AS tr\")->fetch(PDO::FETCH_ASSOC);
+    if (!\$row['pa'] || !\$row['tr']) {
+        echo '  schema not ready yet (missing pricing_agreements or transfer_requests)' . PHP_EOL;
         exit(1);
     }
-    echo '  schema ready' . PHP_EOL;
+    echo '  schema ready (pricing_agreements + transfer_requests present)' . PHP_EOL;
     exit(0);
 } catch (Throwable \$e) {
     echo '  PDO error: ' . \$e->getMessage() . PHP_EOL;

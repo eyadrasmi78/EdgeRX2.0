@@ -20,9 +20,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUser, orders, produ
 
   // Metrics Calculation
   const metrics = useMemo(() => {
+    // FE-8 fix: filter supplier orders by id, not name. Two suppliers with
+    // similar display names would otherwise leak each other's order data.
     const isSupplier = currentUser.role === UserRole.SUPPLIER || currentUser.role === UserRole.FOREIGN_SUPPLIER;
-    const myOrders = isSupplier 
-        ? orders.filter(o => o.supplierName === currentUser.name)
+    const myOrders = isSupplier
+        ? orders.filter(o => o.supplierId === currentUser.id)
         : orders.filter(o => o.customerId === currentUser.id);
 
     const completedStates = [OrderStatus.CONFIRMED_BY_CUSTOMER, OrderStatus.COMPLETED, OrderStatus.FULFILLED];

@@ -18,6 +18,16 @@ class TransferRequestResource extends JsonResource
         $isSource   = $user && $user->id === $this->source_user_id;
         $isTarget   = $user && $user->id === $this->target_user_id;
 
+        // BE-19 fix: pharmacy masters viewing transfers for their child
+        // pharmacies see the same fields the child would see. Without this,
+        // a master couldn't see refund / resale figures for orders placed
+        // by their own children — bad UX, breaks chain consolidation.
+        if ($user && $user->isPharmacyMaster()) {
+            $childIds = $user->masterOf()->pluck('users.id');
+            if ($childIds->contains($this->source_user_id)) $isSource = true;
+            if ($childIds->contains($this->target_user_id)) $isTarget = true;
+        }
+
         $items = $this->whenLoaded('items', function () use ($isAdmin, $isSupplier, $isSource, $isTarget) {
             return $this->items->map(function ($item) use ($isAdmin, $isSupplier, $isSource, $isTarget) {
                 $row = [

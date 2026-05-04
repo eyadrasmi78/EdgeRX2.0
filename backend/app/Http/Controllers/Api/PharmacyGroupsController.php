@@ -32,13 +32,28 @@ class PharmacyGroupsController extends Controller
         return UserResource::collection($masters);
     }
 
+    /**
+     * GET /api/me/pharmacies
+     * BE-31 fix: extracted from inline closure in routes/api.php so the
+     * route file can be route:cache'd in production. Returns the current
+     * master's children, or [] for non-masters.
+     */
+    public function mine(Request $request)
+    {
+        $u = $request->user();
+        if (!$u->isPharmacyMaster()) {
+            return UserResource::collection(collect());
+        }
+        return UserResource::collection($u->masterOf()->get());
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
             // No company_details required (per locked decision #4)
             'email' => 'required|string|email|max:255|unique:users,email|unique:team_members,email',
-            'password' => 'required|string|min:4|max:255',
+            'password' => 'required|string|min:8|max:255',
             'phone' => 'nullable|string|max:64',
             'pharmacyIds' => 'nullable|array',
             'pharmacyIds.*' => 'string|exists:users,id',
@@ -80,7 +95,7 @@ class PharmacyGroupsController extends Controller
             'name' => 'nullable|string|max:255',
             'email' => 'nullable|string|email|max:255|unique:users,email,' . $master->id . '|unique:team_members,email',
             'phone' => 'nullable|string|max:64',
-            'password' => 'nullable|string|min:4|max:255',
+            'password' => 'nullable|string|min:8|max:255',
         ]);
 
         if (isset($data['name']))     $master->name = $data['name'];

@@ -115,7 +115,7 @@ class UsersController extends Controller
             'email' => 'required|string|max:255|unique:users,email|unique:team_members,email',
             'phone' => 'nullable|string|max:64',
             'jobTitle' => 'nullable|string|max:255',
-            'password' => 'required|string|min:4',
+            'password' => 'required|string|min:8',
             'permissions' => 'nullable|array',
         ]);
         $member = TeamMember::create([
@@ -151,7 +151,7 @@ class UsersController extends Controller
             'email' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:64',
             'jobTitle' => 'nullable|string|max:255',
-            'password' => 'nullable|string|min:4',
+            'password' => 'nullable|string|min:8',
             'permissions' => 'nullable|array',
         ]);
         if (isset($data['name'])) $member->name = $data['name'];

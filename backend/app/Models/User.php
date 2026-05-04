@@ -15,8 +15,15 @@ class User extends Authenticatable
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * BE-13 fix: removed `id` from fillable. The boot() hook auto-generates
+     * a UUID — no client-supplied id can ever be mass-assigned.
+     * `role` and `status` are kept fillable because seeders + admin endpoints
+     * legitimately set them via ->update(); request validation in
+     * UsersController + AuthController gates which fields are accepted.
+     */
     protected $fillable = [
-        'id', 'name', 'email', 'password', 'phone', 'role', 'status',
+        'name', 'email', 'password', 'phone', 'role', 'status',
     ];
 
     protected $hidden = [
@@ -109,11 +116,21 @@ class User extends Authenticatable
     }
 
     /**
+     * BE-23 fix: cache the master's child pharmacy id list per request so
+     * hot loops (cart checkout, order list, transfer scoping) don't fire
+     * one SELECT per call.
+     */
+    private ?array $_ownedPharmacyIds = null;
+
+    /**
      * True iff this user is the master of $pharmacyUserId.
      */
     public function ownsPharmacy(string $pharmacyUserId): bool
     {
         if (!$this->isPharmacyMaster()) return false;
-        return $this->masterOf()->where('pharmacy_user_id', $pharmacyUserId)->exists();
+        if ($this->_ownedPharmacyIds === null) {
+            $this->_ownedPharmacyIds = $this->masterOf()->pluck('users.id')->all();
+        }
+        return in_array($pharmacyUserId, $this->_ownedPharmacyIds, true);
     }
 }

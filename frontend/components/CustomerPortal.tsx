@@ -172,7 +172,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ products, onRequ
       e.preventDefault();
       if (userModal.mode === 'create') {
           const newMember: TeamMember = {
-              id: Math.random().toString(36).substr(2, 9),
+              id: Math.random().toString(36).slice(2, 11),
               name: userFormData.name,
               email: userFormData.email,
               phone: userFormData.phone,

@@ -409,6 +409,8 @@ const translations: Record<string, { en: string; ar: string }> = {
   // 'unit_price' defined earlier (line ~243)
   'add_item': { en: 'Add Item', ar: 'أضف عنصر' },
   'create_draft': { en: 'Create Draft', ar: 'إنشاء مسودة' },
+  'contract_pricing_hint': { en: 'Contract pricing applies at checkout if you have an active agreement.',
+                              ar: 'يتم تطبيق سعر العقد عند الدفع في حال وجود اتفاقية فعّالة.' },
 
   // FE-4 — Phase D status / enum translations (so Arabic mode doesn't show raw English)
   // Transfer statuses

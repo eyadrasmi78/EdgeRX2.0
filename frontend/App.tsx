@@ -13,6 +13,7 @@ import { BuyingGroups } from './components/BuyingGroups';
 import { Transfers } from './components/Transfers';
 import { PricingAgreements } from './components/PricingAgreements';
 import { DataService } from './services/mockData';
+import { subscribeUnauthorized } from './services/api';
 import { User, Product, Order, Notification, CartItem, UserRole, OrderStatus, RegistrationStatus } from './types';
 import { useLanguage } from './contexts/LanguageContext';
 import { LogOut, ShoppingCart, User as UserIcon, Bell, Home, Globe, LayoutGrid, ShoppingBag, Clock, Settings, CheckCircle, X, Clipboard, ExternalLink, Activity, BarChart3, Users, ShieldCheck, ArrowLeftRight, FileSignature } from 'lucide-react';
@@ -58,13 +59,38 @@ export function App() {
     })();
   }, []);
 
+  /**
+   * FE-3 fix: subscribe to global 401 events. When any API call (cache refresh,
+   * polling, mutation) gets a 401 because the session expired, we wipe local
+   * state and force the user back to login — instead of leaving them in a
+   * "logged in" UI that silently fails on every action.
+   */
+  useEffect(() => {
+    const unsub = subscribeUnauthorized(() => {
+      setUser(null);
+      setCart([]);
+      setOrders([]);
+      setProducts([]);
+      setIsBooting(false);
+    });
+    return unsub;
+  }, []);
+
   // Persist cart to server whenever it changes (debounced + skip during boot/logout).
   // CUSTOMERS persist their own cart; PHARMACY_MASTERS persist a multi-pharmacy cart
   // where each line carries onBehalfOfCustomerId.
+  //
+  // FE-21 fix: capture the user id at debounce-arm time and verify on fire that
+  // we still have the same user. Without this, a debounced save scheduled before
+  // logout would fire after logout and either 401 (silent) or save into the
+  // wrong session if the user logged in as someone else within 400ms.
   useEffect(() => {
     if (isBooting || !user) return;
     if (user.role !== UserRole.CUSTOMER && user.role !== UserRole.PHARMACY_MASTER) return;
+    const armedFor = user.id;
     const handle = setTimeout(() => {
+      // Re-check user is still the same one we armed for
+      if (!user || user.id !== armedFor) return;
       DataService.saveCart(cart.map(c => ({
         productId: c.product.id,
         quantity: c.quantity,
@@ -74,8 +100,19 @@ export function App() {
     return () => clearTimeout(handle);
   }, [cart, isBooting, user]);
 
+  /**
+   * FE-15 fix: replace deprecated Math.random().toString(36).substr(...) with
+   * crypto.randomUUID() (universal in modern browsers) and a fallback.
+   */
+  const generateId = (): string => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return `n_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 11)}`;
+  };
+
   const addNotification = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = generateId();
     setNotifications(prev => [...prev, { id, message, type, timestamp: Date.now() }]);
   };
 
@@ -115,16 +152,22 @@ export function App() {
     }
   };
 
-  // Click-outside to close bell
+  // FE-18 fix: bind to `click` (not `mousedown`) so a quick drag-select that
+  // ends inside the bell dropdown doesn't accidentally close it. Also handle
+  // touchstart for mobile.
   useEffect(() => {
     if (!isBellOpen) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
         setIsBellOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('click', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('click', handler);
+      document.removeEventListener('touchstart', handler);
+    };
   }, [isBellOpen]);
 
   // Background poll: refresh notifications every 15s while logged in so new ones show up

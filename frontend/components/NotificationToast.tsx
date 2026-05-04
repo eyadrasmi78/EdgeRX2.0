@@ -1,15 +1,23 @@
 import React, { useEffect } from 'react';
 import { Notification } from '../types';
 import { X, CheckCircle, Info, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface NotificationToastProps {
   notifications: Notification[];
   removeNotification: (id: string) => void;
 }
 
+/**
+ * FE-5 fix: toast container anchors to the inline-end edge — bottom-right in
+ * LTR, bottom-left in RTL. Hardcoded `right-4` would visually lock to the
+ * left side in Arabic mode (since RTL reverses the visual axis).
+ */
 export const NotificationToast: React.FC<NotificationToastProps> = ({ notifications, removeNotification }) => {
+  const { dir } = useLanguage();
+  const edgeClass = dir === 'rtl' ? 'left-4' : 'right-4';
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+    <div className={`fixed bottom-4 ${edgeClass} z-50 flex flex-col gap-2`}>
       {notifications.map((notif) => (
         <ToastItem key={notif.id} notification={notif} onDismiss={() => removeNotification(notif.id)} />
       ))}
