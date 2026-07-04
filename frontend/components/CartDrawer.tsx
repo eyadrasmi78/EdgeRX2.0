@@ -63,6 +63,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       : Math.floor(quantity * (product.bonusValue / 100));
   };
 
+  // FE-12 minimum a11y: ESC closes, focus stays inside the drawer.
+  // MUST be called unconditionally (before the early return) to satisfy the
+  // Rules of Hooks — the hook self-disables its effects when isOpen is false.
+  const a11yRef = useModalA11y(isOpen, onClose);
+
   if (!isOpen) return null;
 
   /** Renders one cart line — used by both single-level and two-level grouping. */
@@ -108,9 +113,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       </div>
     );
   };
-
-  // FE-12 minimum a11y: ESC closes, focus stays inside the drawer
-  const a11yRef = useModalA11y(true, onClose);
 
   return (
     /* FE-5 fix: drawer slides in from the inline-end edge regardless of LTR/RTL.

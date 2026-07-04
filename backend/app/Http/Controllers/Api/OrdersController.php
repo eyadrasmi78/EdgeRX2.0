@@ -140,14 +140,18 @@ class OrdersController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        // BE-9 fix: status transitions are role-gated.
-        // - Suppliers control fulfilment lifecycle: In Progress, Shipment OTW, Delivered, Declined, Changes Proposed.
-        // - Customers (and their masters) can ONLY confirm Receipt or request a Return.
+        // BE-9 fix: status transitions are role-gated. Values MUST match the OrderStatus
+        // enum (frontend/types.ts) and UpdateOrderRequest's `in:` list exactly.
+        // - Suppliers control the fulfilment lifecycle: accept (In Progress), dispatch
+        //   (Shipment On The Way), deliver (Completed), Declined, propose a change
+        //   (Pending Customer Approval), or Out of Stock.
+        // - Customers (and their masters) confirm receipt (Confirmed by Customer),
+        //   request a Return, or approve/decline a proposed change (In Progress / Declined).
         // - Admins may set anything (override path for support).
         $data = $request->validated();
 
-        $supplierAllowed = ['In Progress', 'Shipment OTW', 'Delivered', 'Declined', 'Changes Proposed', 'Completed'];
-        $customerAllowed = ['Received', 'Completed', 'Return Requested'];
+        $supplierAllowed = ['In Progress', 'Shipment On The Way', 'Completed', 'Declined', 'Pending Customer Approval', 'Out of Stock'];
+        $customerAllowed = ['Confirmed by Customer', 'Return Requested', 'In Progress', 'Declined'];
 
         if (isset($data['status']) && $data['status'] !== $order->status) {
             $newStatus = $data['status'];
