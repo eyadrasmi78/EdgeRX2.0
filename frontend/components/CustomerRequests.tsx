@@ -30,14 +30,23 @@ export const CustomerRequests: React.FC<CustomerRequestsProps> = ({ orders, curr
   // Check Permissions
   const canChat = true;
 
+  // A PHARMACY_MASTER owns its own account plus its child pharmacies. Orders placed
+  // on behalf of a child pharmacy carry the child's id as customerId, so "My Requests"
+  // must include those too — not just orders whose customerId is the master itself.
+  const ownedCustomerIds = useMemo(() => {
+      const ids = new Set<string>([currentUser.id]);
+      currentUser.childPharmacies?.forEach(p => ids.add(p.id));
+      return ids;
+  }, [currentUser.id, currentUser.childPharmacies]);
+
   // Compute unique suppliers
   const uniqueSuppliers = useMemo(() => {
-      const customerOrders = orders.filter(o => o.customerId === currentUser.id);
+      const customerOrders = orders.filter(o => ownedCustomerIds.has(o.customerId));
       return Array.from(new Set(customerOrders.map(o => o.supplierName))).sort();
-  }, [orders, currentUser.id]);
+  }, [orders, ownedCustomerIds]);
 
   const processedOrders = useMemo(() => {
-    let filtered = orders.filter(o => o.customerId === currentUser.id);
+    let filtered = orders.filter(o => ownedCustomerIds.has(o.customerId));
     if (filterStatus !== 'ALL') filtered = filtered.filter(o => o.status === filterStatus);
     if (filterSupplier !== 'ALL') filtered = filtered.filter(o => o.supplierName === filterSupplier);
     if (searchTerm.trim()) {
@@ -58,7 +67,7 @@ export const CustomerRequests: React.FC<CustomerRequestsProps> = ({ orders, curr
         }
     });
     return filtered;
-  }, [orders, currentUser.id, filterStatus, filterSupplier, searchTerm, sortBy]);
+  }, [orders, ownedCustomerIds, filterStatus, filterSupplier, searchTerm, sortBy]);
 
   const handleConfirmChanges = (orderId: string) => {
       onUpdateOrder?.(orderId, { status: OrderStatus.IN_PROGRESS }, 'Customer confirmed proposed changes');
