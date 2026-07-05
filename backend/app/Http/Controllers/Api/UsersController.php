@@ -82,10 +82,31 @@ class UsersController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
+        // Mirror RegisterRequest's document rules so profile updates can't bypass
+        // the size cap + magic-byte MIME check that registration enforces.
+        $pdfRule  = ['nullable', 'string', 'max:10000000', new \App\Rules\DocumentDataUrl(['pdf'])];
+        $imgOrPdf = ['nullable', 'string', 'max:10000000', new \App\Rules\DocumentDataUrl(['pdf', 'image'])];
         $data = $request->validate([
             'name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:64',
             'companyDetails' => 'nullable|array',
+            'companyDetails.address' => 'nullable|string|max:512',
+            'companyDetails.website' => 'nullable|string|max:255',
+            'companyDetails.country' => 'nullable|string|max:100',
+            'companyDetails.tradeLicenseNumber' => 'nullable|string|max:100',
+            'companyDetails.tradeLicenseExpiry' => 'nullable|date',
+            'companyDetails.tradeLicenseFileName' => 'nullable|string|max:255',
+            'companyDetails.tradeLicenseDataUrl' => $pdfRule,
+            'companyDetails.authorizedSignatory' => 'nullable|string|max:255',
+            'companyDetails.authorizedSignatoryExpiry' => 'nullable|date',
+            'companyDetails.authorizedSignatoryFileName' => 'nullable|string|max:255',
+            'companyDetails.authorizedSignatoryDataUrl' => $pdfRule,
+            'companyDetails.businessType' => 'nullable|string|max:100',
+            'companyDetails.isoCertificateFileName' => 'nullable|string|max:255',
+            'companyDetails.isoCertificateExpiry' => 'nullable|date',
+            'companyDetails.isoCertificateDataUrl' => $imgOrPdf,
+            'companyDetails.labTestFileName' => 'nullable|string|max:255',
+            'companyDetails.labTestDataUrl' => $imgOrPdf,
         ]);
 
         $user = User::findOrFail($id);

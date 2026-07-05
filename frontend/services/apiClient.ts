@@ -31,6 +31,8 @@ let _partnerships: PartnershipRequest[] = [];
 let _chats: ChatRoom[] = [];
 let _notifications: InAppNotification[] = [];
 let _currentUser: User | null = null;
+// FE-10: serialize debounced cart writes so they land in call order (last write wins).
+let _cartSaveChain: Promise<void> = Promise.resolve();
 
 /* ── race-token guards (S3) ──────────────────────────────────────────
  * Each cache slice has a monotonic generation counter. When two mutations
@@ -224,6 +226,10 @@ export const DataService = {
   },
 
   updateUser: async (updatedUser: User): Promise<{ success: boolean; message?: string }> => {
+    // FE-10: capture the race token BEFORE the request, so a newer updateUser that
+    // starts while this one is in flight bumps the gen and marks this write stale.
+    // (Previously newGen ran after the awaits, making the isFresh check a no-op.)
+    const g = newGen('currentUser');
     try {
       await api.patch(`/users/${updatedUser.id}`, {
         name: updatedUser.name,
@@ -231,9 +237,6 @@ export const DataService = {
         companyDetails: updatedUser.companyDetails,
       });
       await refreshUsers();
-      // FE-10: race-token guard — if a newer updateUser call landed first,
-      // don't overwrite the currentUser cache with our stale payload.
-      const g = newGen('currentUser');
       if (isFresh('currentUser', g) && _currentUser && _currentUser.id === updatedUser.id) {
         _currentUser = { ..._currentUser, ...updatedUser } as User;
       }
@@ -293,20 +296,20 @@ export const DataService = {
     try { return await api.get('/cart'); } catch { return []; }
   },
   /**
-   * FE-10: race-token guard. A debounced save that lands AFTER a newer one
-   * (e.g. user added another item before the prior 400ms timer fired) must
-   * not stomp on the newer write. We bump the gen at the start of saveCart
-   * and skip the DELETE/PUT if a newer save has overtaken us.
+   * FE-10: debounced saves are serialized on a promise chain so they execute in
+   * call order — the newest-enqueued write is the last to hit the server, so it
+   * wins. (A gen check after the request can't help a network write: by then the
+   * stale write has already landed. Ordering is what guarantees last-write-wins.)
    */
-  saveCart: async (items: { productId: string; quantity: number; onBehalfOfCustomerId?: string }[]): Promise<void> => {
-    const g = newGen('cart');
-    if (items.length === 0) {
-      if (!isFresh('cart', g)) return;
-      try { await api.del('/cart'); } catch {/* ignore */}
-      return;
-    }
-    if (!isFresh('cart', g)) return;
-    try { await api.put('/cart', { items }); } catch (e) { logSliceError('cart', e); }
+  saveCart: (items: { productId: string; quantity: number; onBehalfOfCustomerId?: string }[]): Promise<void> => {
+    _cartSaveChain = _cartSaveChain.catch(() => {}).then(async () => {
+      if (items.length === 0) {
+        try { await api.del('/cart'); } catch {/* ignore */}
+      } else {
+        try { await api.put('/cart', { items }); } catch (e) { logSliceError('cart', e); }
+      }
+    });
+    return _cartSaveChain;
   },
   checkoutCart: async (): Promise<{ orders: Order[] }> => {
     const r = await api.post<{ orders: Order[] }>('/cart/checkout');

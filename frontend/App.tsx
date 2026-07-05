@@ -269,32 +269,21 @@ export function App() {
     if (!user) return;
 
     try {
-      // Each cart line becomes one order via POST /api/orders.
-      // For Pharmacy Masters, customerId is the child pharmacy id (apiClient.createOrder
-      // forwards it as onBehalfOfCustomerId on the wire).
-      for (const item of cart) {
-        const customerId = item.onBehalfOfCustomerId ?? user.id;
-        const customerName = item.onBehalfOfCustomerName ?? user.name;
-        const order: Order = {
-          id: '', orderNumber: '',
-          productId: item.product.id,
-          productName: item.product.name,
-          customerId,
-          customerName,
-          supplierName: item.product.supplierName,
-          quantity: item.quantity,
-          unitOfMeasurement: item.product.unitOfMeasurement,
-          status: OrderStatus.RECEIVED,
-          date: new Date().toISOString(),
-        };
-        await DataService.createOrder(order);
-      }
+      // Sync the server-side cart to the current UI cart, then check out through
+      // /cart/checkout — one atomic call that applies contract pricing, enforces
+      // agreement MOQ rules, and bonus logic (all bypassed by per-line POST /orders).
+      await DataService.saveCart(cart.map(item => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        onBehalfOfCustomerId: item.onBehalfOfCustomerId,
+      })));
+      await DataService.checkoutCart();
       setOrders(DataService.getOrders());
       setCart([]);
       addNotification('Orders placed successfully!', 'success');
       setActiveView(user.role === UserRole.CUSTOMER || user.role === UserRole.PHARMACY_MASTER ? 'my_requests' : 'orders');
-    } catch {
-      addNotification('Failed to place orders. Please try again.', 'warning');
+    } catch (e: any) {
+      addNotification(e?.data?.message || 'Failed to place orders. Please try again.', 'warning');
     }
   };
 
