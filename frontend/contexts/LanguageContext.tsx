@@ -119,6 +119,7 @@ const translations: Record<string, { en: string; ar: string }> = {
   'activate': { en: 'Activate', ar: 'تفعيل' },
   'module_locked_desc': { en: 'This is a paid module that is not active on your account yet. Activate it any time.', ar: 'هذه وحدة مدفوعة غير مفعّلة على حسابك بعد. يمكنك تفعيلها في أي وقت.' },
   'view_modules': { en: 'View Modules', ar: 'عرض الوحدات' },
+  'promo_codes': { en: 'Promo Codes', ar: 'رموز الخصم' },
   'revise_commitment': { en: 'Revise', ar: 'تعديل' },
   'you_have_declined': { en: 'You declined this group.', ar: 'لقد رفضت هذه المجموعة.' },
   'confirm_decline_buying_group': { en: 'Decline this buying group? You will be removed.', ar: 'هل تريد رفض هذه المجموعة؟ سيتم إزالتك.' },

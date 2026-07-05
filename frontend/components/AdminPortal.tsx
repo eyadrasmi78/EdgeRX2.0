@@ -5,6 +5,8 @@ import { notify, confirmAction } from '../services/notify';
 import { User, RegistrationStatus, UserRole, Product, Order, OrderStatus, ProductCategory, ForeignBusinessType, TeamMember, Permission } from '../types';
 import { Check, X, Building, Globe, FileText, User as UserIcon, Calendar, Download, AlertTriangle, Search, Mail, MapPin, Plus, Save, Package, Edit2, Upload, LayoutGrid, Users, Filter, BarChart3, TrendingUp, CheckCircle, ShoppingBag, ShieldCheck, Microscope, ArrowLeft, Phone, Lock, Eye, Key, File as FileIcon, Send, Gift } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { AdminPromoCodes } from './AdminPromoCodes';
+import { Ticket } from 'lucide-react';
 
 interface AdminPortalProps {
   products?: Product[];
@@ -15,7 +17,7 @@ interface AdminPortalProps {
 export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders = [], onUpdateProduct }) => {
   const { t } = useLanguage();
   const [users, setUsers] = useState<User[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'products' | 'pharmacy_groups' | 'buying_groups'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'products' | 'pharmacy_groups' | 'buying_groups' | 'promo_codes'>('users');
 
   /* ── Buying Groups (Phase B) ── */
   const [bgList, setBgList] = useState<any[]>([]);
@@ -519,7 +521,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ products = [], orders 
          <button onClick={() => setActiveTab('buying_groups')} className={`pb-4 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'buying_groups' ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             <Users size={18} /> {t('manage_buying_groups')}
          </button>
+         <button onClick={() => setActiveTab('promo_codes')} className={`pb-4 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'promo_codes' ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            <Ticket size={18} /> {t('promo_codes') || 'Promo Codes'}
+         </button>
       </div>
+
+      {activeTab === 'promo_codes' && (
+        <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+          <div className="mb-6">
+            <h2 className="text-2xl font-black text-gray-900">{t('promo_codes') || 'Promo Codes'}</h2>
+            <p className="text-gray-500">Generate fee-waiver codes that activate modules for a customer.</p>
+          </div>
+          <AdminPromoCodes />
+        </div>
+      )}
 
       {activeTab === 'buying_groups' && (
         <div className="animate-in fade-in slide-in-from-left-4 duration-300">

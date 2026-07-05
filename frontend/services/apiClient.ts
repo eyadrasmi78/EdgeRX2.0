@@ -657,4 +657,8 @@ export const DataService = {
     try { const r = await api.post<{ code: string }>('/admin/promo-codes', payload); return { success: true, code: r.code }; }
     catch (e: any) { return { success: false, message: e?.data?.message || 'Could not generate code' }; }
   },
+  /** Admin — list generated promo codes. */
+  listPromoCodes: async (): Promise<any[]> => {
+    try { return await api.get<any[]>('/admin/promo-codes'); } catch { return []; }
+  },
 };
