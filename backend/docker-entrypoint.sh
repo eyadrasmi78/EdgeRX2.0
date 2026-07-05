@@ -47,6 +47,15 @@ echo "Running migrations..."
 php artisan migrate --force
 
 echo ""
+# Module catalogue is real config (not demo data) — always keep it seeded (idempotent).
+echo "Seeding module catalogue..."
+php artisan db:seed --force --class='Database\Seeders\ModuleCatalogueSeeder' || echo "  module catalogue seed skipped"
+# Materialise entitlements so the gate is correct when enforcement is switched on.
+# Cheap at current scale; gate behind a flag if the account count grows large.
+echo "Backfilling module entitlements..."
+php artisan entitlements:backfill || echo "  backfill skipped"
+
+echo ""
 # Demo seeder is gated by RUN_DEMO_SEEDER so prod doesn't overwrite real customer
 # data on every deploy. To seed in production: temporarily set RUN_DEMO_SEEDER=true,
 # deploy, then unset and deploy again.
