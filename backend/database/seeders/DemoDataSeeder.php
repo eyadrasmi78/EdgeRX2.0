@@ -34,6 +34,7 @@ class DemoDataSeeder extends Seeder
             $this->seedOrders();
             $this->seedFeed();
             $this->seedBuyingGroups();
+            $this->seedAgreementsAndTransfers();
         });
     }
 
@@ -833,5 +834,143 @@ class DemoDataSeeder extends Seeder
         foreach ($items as $f) {
             FeedItem::updateOrCreate(['id' => $f['id']], $f);
         }
+    }
+
+    /* ──────────── PRICING AGREEMENTS + TRANSFERS (Phase D demo) ────────────
+     * Populates the customer's Agreements and Transfers screens for
+     * City General Hospital (id 3). Without this, both screens are empty.
+     * Idempotent: keyed on stable ids so re-seeding updates in place.
+     */
+    private function seedAgreementsAndTransfers(): void
+    {
+        $CUSTOMER = '3';   // City General Hospital
+        $SUPPLIER = '2';   // MediGlobal Suppliers (in the customer's supplier network via order o1)
+        $ADMIN    = '1';   // admin
+        $OTHER    = 'bg_c1'; // Al-Salam Pharmacy — transfer counterparty / marketplace source
+
+        /* ---- 1. ACTIVE pricing agreement (contract prices live for orders) ---- */
+        $pa1 = \App\Models\PricingAgreement::updateOrCreate(['id' => 'pa1'], [
+            'id' => 'pa1',
+            'agreement_number' => 'A-2026-001',
+            'customer_id' => $CUSTOMER,
+            'supplier_id' => $SUPPLIER,
+            'status' => 'ACTIVE',
+            'version' => 1,
+            'valid_from' => now()->subMonths(3)->toDateString(),
+            'valid_to' => now()->addMonths(9)->toDateString(),
+            'auto_renew' => true,
+            'renew_notice_days' => 30,
+            'moq_fallback_mode' => 'FALLBACK_CATALOG',
+            'scope' => 'CUSTOMER_ONLY',
+            'bonuses_apply' => true,
+            'currency' => 'KWD',
+            'sent_to_customer_at' => now()->subMonths(3)->subDays(5),
+            'signed_by_customer_at' => now()->subMonths(3)->subDays(2),
+            'approved_by_admin_at' => now()->subMonths(3)->subDay(),
+            'approved_by_admin_id' => $ADMIN,
+            'notes' => 'Annual supply agreement — core antibiotics and respiratory line.',
+        ]);
+        $pa1Items = [
+            ['product_id' => 'p1',  'unit_price' => 4.20, 'min_order_quantity' => 10, 'tier_breaks' => [['qty' => 100, 'price' => 3.95], ['qty' => 500, 'price' => 3.70]]],
+            ['product_id' => 'p13', 'unit_price' => 7.50, 'min_order_quantity' => 5,  'tier_breaks' => [['qty' => 50, 'price' => 7.10]]],
+        ];
+        foreach ($pa1Items as $it) {
+            \App\Models\PricingAgreementItem::updateOrCreate(
+                ['pricing_agreement_id' => 'pa1', 'product_id' => $it['product_id']],
+                $it + ['pricing_agreement_id' => 'pa1']
+            );
+        }
+        // Version snapshot (used by the price resolver at checkout)
+        \App\Models\PricingAgreementVersion::updateOrCreate(
+            ['pricing_agreement_id' => 'pa1', 'version' => 1],
+            [
+                'pricing_agreement_id' => 'pa1',
+                'version' => 1,
+                'activated_at' => now()->subMonths(3)->subDay(),
+                'snapshot' => [
+                    'agreement_number' => 'A-2026-001',
+                    'customer_id' => $CUSTOMER,
+                    'supplier_id' => $SUPPLIER,
+                    'items' => $pa1Items,
+                ],
+            ]
+        );
+
+        /* ---- 2. PENDING_CUSTOMER agreement (customer has an action: counter-sign) ---- */
+        \App\Models\PricingAgreement::updateOrCreate(['id' => 'pa2'], [
+            'id' => 'pa2',
+            'agreement_number' => 'A-2026-002',
+            'customer_id' => $CUSTOMER,
+            'supplier_id' => $SUPPLIER,
+            'status' => 'PENDING_CUSTOMER',
+            'version' => 1,
+            'valid_from' => now()->toDateString(),
+            'valid_to' => now()->addYear()->toDateString(),
+            'auto_renew' => false,
+            'moq_fallback_mode' => 'FALLBACK_CATALOG',
+            'scope' => 'CUSTOMER_ONLY',
+            'bonuses_apply' => true,
+            'currency' => 'KWD',
+            'sent_to_customer_at' => now()->subDays(2),
+            'notes' => 'Insulin supply proposal — awaiting your counter-signature.',
+        ]);
+        \App\Models\PricingAgreementItem::updateOrCreate(
+            ['pricing_agreement_id' => 'pa2', 'product_id' => 'p4'],
+            ['pricing_agreement_id' => 'pa2', 'product_id' => 'p4', 'unit_price' => 21.00, 'min_order_quantity' => 5]
+        );
+
+        /* ---- 3. Transfer the customer initiated (offloading excess stock) ---- */
+        \App\Models\TransferRequest::updateOrCreate(['id' => 'tr1'], [
+            'id' => 'tr1',
+            'source_user_id' => $CUSTOMER,   // City General is offloading
+            'target_user_id' => $OTHER,      // to Al-Salam Pharmacy
+            'supplier_id' => $SUPPLIER,      // MediGlobal handles QC + chain of title
+            'discovery_mode' => 'DIRECT',
+            'status' => 'SUPPLIER_REVIEW',
+            'source_refund_amount' => 70.00,
+            'target_purchase_amount' => 80.00,
+            'supplier_fee_flat' => 10.00,
+            'supplier_fee_percent' => 0,
+            'supplier_fee_applied' => 10.00,
+            'escrow_status' => 'NONE',
+            'notes' => 'Surplus stock nearing internal reorder threshold — offering to a peer.',
+        ]);
+        \App\Models\TransferRequestItem::updateOrCreate(
+            ['transfer_request_id' => 'tr1', 'product_id' => 'p1'],
+            [
+                'transfer_request_id' => 'tr1', 'product_id' => 'p1',
+                'quantity' => 20, 'unit_price_refund' => 3.50, 'unit_price_resale' => 4.00,
+                'batch_number' => 'BATCH-AMX-2026-07', 'lot_number' => 'LOT-0714',
+                'expiry_date' => now()->addMonths(14)->toDateString(),
+                'gs1_barcode' => '628012345678', 'qc_status' => 'PENDING',
+            ]
+        );
+
+        /* ---- 4. Marketplace listing visible to the customer (claimable) ---- */
+        \App\Models\TransferRequest::updateOrCreate(['id' => 'tr2'], [
+            'id' => 'tr2',
+            'source_user_id' => $OTHER,      // Al-Salam listed it
+            'target_user_id' => null,        // unclaimed
+            'supplier_id' => $SUPPLIER,      // MediGlobal (in City General's network → visible)
+            'discovery_mode' => 'MARKETPLACE',
+            'status' => 'ACCEPTED_BY_SUPPLIER',
+            'source_refund_amount' => 52.50,
+            'target_purchase_amount' => 60.00,
+            'supplier_fee_flat' => 7.50,
+            'supplier_fee_percent' => 0,
+            'supplier_fee_applied' => 7.50,
+            'escrow_status' => 'NONE',
+            'notes' => 'Available on the marketplace — Ventolin, long-dated stock.',
+        ]);
+        \App\Models\TransferRequestItem::updateOrCreate(
+            ['transfer_request_id' => 'tr2', 'product_id' => 'p13'],
+            [
+                'transfer_request_id' => 'tr2', 'product_id' => 'p13',
+                'quantity' => 15, 'unit_price_refund' => 3.50, 'unit_price_resale' => 4.00,
+                'batch_number' => 'BATCH-VEN-2026-05', 'lot_number' => 'LOT-0521',
+                'expiry_date' => now()->addMonths(18)->toDateString(),
+                'gs1_barcode' => '628087654321', 'qc_status' => 'PENDING',
+            ]
+        );
     }
 }
