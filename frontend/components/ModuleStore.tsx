@@ -39,6 +39,7 @@ export const ModuleStore: React.FC<ModuleStoreProps> = ({ currentUser }) => {
     const p = periods[m.key] || 'MONTHLY';
     setBusy(m.key);
     const r = await DataService.buyModule(m.key, p);
+    if (r.success && r.redirectUrl) { window.location.href = r.redirectUrl; return; } // to checkout.com
     setBusy(null);
     if (r.success) { notify(`${m.name} activated.`, 'success'); rerender(); }
     else notify(r.message || 'Could not activate module.', 'warning');

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\SubscriptionsController;
 use App\Http\Controllers\Api\PromoCodesController;
+use App\Http\Controllers\Api\PaymentsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,6 +33,9 @@ Route::get('/healthz', HealthController::class);
 // --- Public auth ---
 Route::post('/auth/login',    [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
+
+// --- Public: checkout.com payment webhook (signature-verified in the controller) ---
+Route::post('/payments/checkout/webhook', [PaymentsController::class, 'checkoutWebhook']);
 
 // --- Authenticated ---
 Route::middleware('auth:sanctum')->group(function () {
@@ -63,21 +67,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cart/checkout',    [CartController::class, 'checkout']);
 
     // Chats
-    Route::get('/chats',                          [ChatsController::class, 'rooms']);
-    Route::get('/chats/{orderId}/messages',       [ChatsController::class, 'messages']);
-    Route::post('/chats/{orderId}/messages',      [ChatsController::class, 'send']);
+    // Order chat is a paid customer module (order_chat); other roles pass through.
+    Route::middleware('module:order_chat')->group(function () {
+        Route::get('/chats',                          [ChatsController::class, 'rooms']);
+        Route::get('/chats/{orderId}/messages',       [ChatsController::class, 'messages']);
+        Route::post('/chats/{orderId}/messages',      [ChatsController::class, 'send']);
+    });
 
     // Feed
-    Route::get('/feed',                       [FeedController::class, 'index']);
+    // Market Feed is a paid customer module (market_feed); suppliers/foreign pass through.
+    Route::middleware('module:market_feed')->group(function () {
+        Route::get('/feed',                       [FeedController::class, 'index']);
+        Route::post('/feed/customer-request',     [FeedController::class, 'customerRequest']);
+    });
     Route::post('/feed',                      [FeedController::class, 'store']);
-    Route::post('/feed/customer-request',     [FeedController::class, 'customerRequest']);
     Route::post('/feed/advertisement',        [FeedController::class, 'advertisement']);
     Route::post('/feed/admin-news',           [FeedController::class, 'adminNews'])->middleware('role:ADMIN');
 
     // Partnerships
-    Route::get('/partnerships',           [PartnershipsController::class, 'index']);
-    Route::post('/partnerships',          [PartnershipsController::class, 'store']);
-    Route::patch('/partnerships/{id}',    [PartnershipsController::class, 'update']);
+    // Foreign Partnerships is a paid supplier module; other roles pass through.
+    Route::middleware('module:foreign_partnerships')->group(function () {
+        Route::get('/partnerships',           [PartnershipsController::class, 'index']);
+        Route::post('/partnerships',          [PartnershipsController::class, 'store']);
+        Route::patch('/partnerships/{id}',    [PartnershipsController::class, 'update']);
+    });
 
     // Modules & subscriptions (Phase 2) — catalogue + purchase/activate
     Route::get('/modules',                        [SubscriptionsController::class, 'index']);
@@ -142,23 +155,27 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/pricing-agreements/{id}/reject',  [PricingAgreementsController::class, 'adminReject']);
     });
 
-    // Pharmacy-to-pharmacy Transfers (Phase D1) — BE-39: rate-limited on mutating endpoints
-    Route::get('/transfers',                          [TransfersController::class, 'index']);
-    Route::get('/transfers/{id}',                     [TransfersController::class, 'show']);
-    Route::middleware('throttle:60,1')->group(function () {
-        Route::post('/transfers',                         [TransfersController::class, 'store']);
-        Route::post('/transfers/{id}/supplier/accept',    [TransfersController::class, 'supplierAccept']);
-        Route::post('/transfers/{id}/supplier/reject',    [TransfersController::class, 'supplierReject']);
-        Route::post('/transfers/{id}/target/confirm',     [TransfersController::class, 'targetConfirm']);
-        Route::post('/transfers/{id}/intake',             [TransfersController::class, 'intake']);
-        Route::post('/transfers/{id}/qc/start',           [TransfersController::class, 'qcStart']);
-        Route::post('/transfers/{id}/qc/pass',            [TransfersController::class, 'qcPass']);
-        Route::post('/transfers/{id}/qc/fail',            [TransfersController::class, 'qcFail']);
-        Route::post('/transfers/{id}/payment/confirm',    [TransfersController::class, 'confirmPayment']);
-        Route::post('/transfers/{id}/complete',           [TransfersController::class, 'complete']);
-        Route::post('/transfers/{id}/cancel',             [TransfersController::class, 'cancel']);
+    // Pharmacy-to-pharmacy Transfers (Phase D1) — BE-39: rate-limited on mutating endpoints.
+    // Gated by BOTH transfers (customers/masters) and transfer_qc (suppliers): each
+    // middleware passes through for the role it doesn't apply to. Inert until enforced.
+    Route::middleware(['module:transfers', 'module:transfer_qc'])->group(function () {
+        Route::get('/transfers',                          [TransfersController::class, 'index']);
+        Route::get('/transfers/{id}',                     [TransfersController::class, 'show']);
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::post('/transfers',                         [TransfersController::class, 'store']);
+            Route::post('/transfers/{id}/supplier/accept',    [TransfersController::class, 'supplierAccept']);
+            Route::post('/transfers/{id}/supplier/reject',    [TransfersController::class, 'supplierReject']);
+            Route::post('/transfers/{id}/target/confirm',     [TransfersController::class, 'targetConfirm']);
+            Route::post('/transfers/{id}/intake',             [TransfersController::class, 'intake']);
+            Route::post('/transfers/{id}/qc/start',           [TransfersController::class, 'qcStart']);
+            Route::post('/transfers/{id}/qc/pass',            [TransfersController::class, 'qcPass']);
+            Route::post('/transfers/{id}/qc/fail',            [TransfersController::class, 'qcFail']);
+            Route::post('/transfers/{id}/payment/confirm',    [TransfersController::class, 'confirmPayment']);
+            Route::post('/transfers/{id}/complete',           [TransfersController::class, 'complete']);
+            Route::post('/transfers/{id}/cancel',             [TransfersController::class, 'cancel']);
+        });
+        Route::get('/transfers/{id}/audit',               [TransfersController::class, 'audit']);
     });
-    Route::get('/transfers/{id}/audit',               [TransfersController::class, 'audit']);
 
     // Notifications
     Route::get('/notifications',                  [NotificationsController::class, 'index']);
@@ -166,6 +183,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all',        [NotificationsController::class, 'markAllRead']);
 
     // AI proxy
-    Route::post('/ai/analyze-product',    [AIController::class, 'analyzeProduct'])->middleware('throttle:60,1');
-    Route::post('/ai/translate-arabic',   [AIController::class, 'translateArabic'])->middleware('throttle:60,1');
+    // AI tools are a paid module (ai_analytics) for customers/masters/suppliers.
+    Route::middleware(['module:ai_analytics', 'throttle:60,1'])->group(function () {
+        Route::post('/ai/analyze-product',    [AIController::class, 'analyzeProduct']);
+        Route::post('/ai/translate-arabic',   [AIController::class, 'translateArabic']);
+    });
 });

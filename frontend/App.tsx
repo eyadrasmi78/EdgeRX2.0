@@ -356,9 +356,13 @@ export function App() {
       // Phase D — Transfers + Agreements available to customers and masters.
       items.push({ id: 'transfers', label: t('nav_transfers'), icon: ArrowLeftRight });
       items.push({ id: 'agreements', label: t('nav_agreements'), icon: FileSignature });
-      items.push({ id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles });
+      // The module store only appears once the modular plan is switched on.
+      if (DataService.modulesEnforced()) items.push({ id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles });
       return items;
     }
+
+    const modulesNav = DataService.modulesEnforced()
+      ? [{ id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles }] : [];
 
     if (user.role === UserRole.SUPPLIER) {
       return [
@@ -369,7 +373,7 @@ export function App() {
         { id: 'agreements', label: t('nav_agreements'), icon: FileSignature },
         { id: 'supplier_reports', label: t('nav_reports'), icon: BarChart3 },
         { id: 'supplier_team', label: t('manage_team'), icon: Users },
-        { id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles },
+        ...modulesNav,
       ];
     }
 
@@ -379,7 +383,7 @@ export function App() {
         { id: 'foreign_dashboard', label: t('nav_dashboard'), icon: LayoutGrid },
         { id: 'foreign_reports', label: t('nav_reports'), icon: BarChart3 },
         { id: 'foreign_team', label: t('manage_team'), icon: Users },
-        { id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles },
+        ...modulesNav,
       ];
     }
 

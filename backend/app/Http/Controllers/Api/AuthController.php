@@ -86,6 +86,10 @@ class AuthController extends Controller
             CompanyDetails::create(CompanyDetailsPayload::fromRequest($data['companyDetails'], $user->id));
         }
 
+        // Materialise the new account's CORE (free) module entitlements so the gate
+        // works for them the moment enforcement is turned on. Inert-safe otherwise.
+        app(\App\Services\EntitlementService::class)->recompute($user->id);
+
         // BE-29 fix: fan-out to admins is bell-only (email = false). Admins
         // see the pending registration immediately on their bell; we don't
         // block the request on N SMTP round trips.

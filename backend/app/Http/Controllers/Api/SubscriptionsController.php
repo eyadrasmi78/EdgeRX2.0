@@ -66,20 +66,32 @@ class SubscriptionsController extends Controller
         }
 
         [$price, $periodMonths] = $this->priceFor($module, $data['billing_period']);
+        $checkout = app(\App\Services\CheckoutService::class);
+        $payFirst = $checkout->isConfigured();
 
-        Subscription::create([
+        $sub = Subscription::create([
             'account_id'           => $user->id,
             'module_key'           => $module->key,
             'billing_period'       => $data['billing_period'],
-            'status'               => 'ACTIVE', // NB: payment integration is Phase 5; today activation is immediate
+            // With checkout.com configured, the subscription stays PENDING until the
+            // payment webhook activates it. Without it, activate immediately.
+            'status'               => $payFirst ? 'PENDING' : 'ACTIVE',
             'unit_price_kd'        => $price,
-            'current_period_start' => now(),
-            'current_period_end'   => now()->addMonths($periodMonths),
+            'current_period_start' => $payFirst ? null : now(),
+            'current_period_end'   => $payFirst ? null : now()->addMonths($periodMonths),
             'auto_renew'           => true,
         ]);
 
-        $this->entitlements->recompute($user->id);
+        if ($payFirst) {
+            $redirect = $checkout->createPaymentLink($sub, $user, $module, $price);
+            if (!$redirect) {
+                $sub->delete();
+                return response()->json(['message' => 'Payment could not be started. Please try again.'], 502);
+            }
+            return response()->json(['requiresPayment' => true, 'redirectUrl' => $redirect, 'priceKd' => $price], 201);
+        }
 
+        $this->entitlements->recompute($user->id);
         return response()->json(['message' => 'Module activated.', 'module' => $module->key, 'priceKd' => $price], 201);
     }
 

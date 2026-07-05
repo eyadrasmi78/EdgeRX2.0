@@ -644,8 +644,13 @@ export const DataService = {
     return m ? m.active : true; // feature not gated for this role
   },
   refreshModules: async (): Promise<void> => { await refreshModules(); },
-  buyModule: async (moduleKey: string, billingPeriod: 'MONTHLY' | 'QUARTERLY' | 'YEARLY'): Promise<{ success: boolean; message?: string }> => {
-    try { await api.post('/subscriptions', { module_key: moduleKey, billing_period: billingPeriod }); await refreshModules(); return { success: true }; }
+  buyModule: async (moduleKey: string, billingPeriod: 'MONTHLY' | 'QUARTERLY' | 'YEARLY'): Promise<{ success: boolean; message?: string; redirectUrl?: string }> => {
+    try {
+      const r = await api.post<{ requiresPayment?: boolean; redirectUrl?: string }>('/subscriptions', { module_key: moduleKey, billing_period: billingPeriod });
+      if (r?.requiresPayment && r?.redirectUrl) return { success: true, redirectUrl: r.redirectUrl };
+      await refreshModules();
+      return { success: true };
+    }
     catch (e: any) { return { success: false, message: e?.data?.message || 'Could not activate module' }; }
   },
   redeemPromoCode: async (code: string): Promise<{ success: boolean; message?: string; activated?: string[] }> => {
