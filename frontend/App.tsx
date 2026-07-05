@@ -13,6 +13,7 @@ import { BuyingGroups } from './components/BuyingGroups';
 import { Transfers } from './components/Transfers';
 import { PricingAgreements } from './components/PricingAgreements';
 import { ModuleStore } from './components/ModuleStore';
+import { ModuleLocked } from './components/ModuleLocked';
 import { DataService } from './services/mockData';
 import { subscribeUnauthorized } from './services/api';
 import { setAiErrorHandler } from './services/aiService';
@@ -406,6 +407,13 @@ export function App() {
         return <ModuleStore currentUser={user} />;
     }
 
+    // Show the feature, or a locked panel if it's a paid module the account hasn't
+    // activated. isFeatureActive returns true for everything while enforcement is off,
+    // so this is a no-op until MODULES_ENFORCED=true.
+    const gated = (feature: string, featureName: string, node: React.ReactNode) =>
+        DataService.isFeatureActive(feature) ? node
+            : <ModuleLocked featureName={featureName} onGoToStore={() => setActiveView('modules')} />;
+
     // Customer + Pharmacy Master share the same screens (master sees aggregate from all child pharmacies)
     if (user.role === UserRole.CUSTOMER || user.role === UserRole.PHARMACY_MASTER) {
         switch (activeView) {
@@ -414,11 +422,11 @@ export function App() {
             case 'my_requests':
                 return <CustomerRequests orders={orders} currentUser={user} onUpdateOrder={handleUpdateOrder} />;
             case 'buying_groups':
-                return <BuyingGroups currentUser={user} />;
+                return gated('buying_groups', t('nav_buying_groups'), <BuyingGroups currentUser={user} />);
             case 'transfers':
                 return <Transfers currentUser={user} />;
             case 'agreements':
-                return <PricingAgreements currentUser={user} />;
+                return gated('pricing_agreements', t('nav_agreements'), <PricingAgreements currentUser={user} />);
             default:
                 return <Dashboard currentUser={user} orders={orders} products={products} />;
         }
@@ -430,7 +438,7 @@ export function App() {
             case 'transfers':
                 return <Transfers currentUser={user} />;
             case 'agreements':
-                return <PricingAgreements currentUser={user} />;
+                return gated('pricing_agreements', t('nav_agreements'), <PricingAgreements currentUser={user} />);
             case 'supplier_orders':
                 return (
                     <SupplierPortal 

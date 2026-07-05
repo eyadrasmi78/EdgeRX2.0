@@ -58,6 +58,13 @@ class EntitlementService
         return self::FEATURE_MAP[$role][$feature] ?? null;
     }
 
+    /** Reverse of moduleKeyForFeature: the feature a role's module key gates. */
+    public static function featureForModuleKey(string $role, string $key): ?string
+    {
+        $feature = array_search($key, self::FEATURE_MAP[$role] ?? [], true);
+        return $feature === false ? null : $feature;
+    }
+
     /** Feature-level gate check: resolve the role's module key, then entitlement. */
     public function isEntitledToFeature(string $accountId, string $feature): bool
     {

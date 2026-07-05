@@ -478,6 +478,8 @@ export interface PricingQuote {
 /** A purchasable module + this account's live entitlement state (GET /modules). */
 export interface ModuleInfo {
   key: string;
+  /** Role-agnostic feature this module gates (null if not a gated feature). */
+  feature?: string | null;
   name: string;
   roleScope: string;
   monthlyPriceKd: number;

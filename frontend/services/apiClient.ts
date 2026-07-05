@@ -637,6 +637,12 @@ export const DataService = {
     const m = _modules.find(x => x.key === key);
     return m ? m.active : true;
   },
+  /** Is a role-agnostic FEATURE active? True for everything while enforcement is off. */
+  isFeatureActive: (feature: string): boolean => {
+    if (!_modulesEnforced) return true;
+    const m = _modules.find(x => x.feature === feature);
+    return m ? m.active : true; // feature not gated for this role
+  },
   refreshModules: async (): Promise<void> => { await refreshModules(); },
   buyModule: async (moduleKey: string, billingPeriod: 'MONTHLY' | 'QUARTERLY' | 'YEARLY'): Promise<{ success: boolean; message?: string }> => {
     try { await api.post('/subscriptions', { module_key: moduleKey, billing_period: billingPeriod }); await refreshModules(); return { success: true }; }

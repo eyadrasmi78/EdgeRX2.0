@@ -29,6 +29,7 @@ class SubscriptionsController extends Controller
             'modules'  => $modules->map(function (Module $m) use ($user, $subs) {
                 return [
                     'key'            => $m->key,
+                    'feature'        => EntitlementService::featureForModuleKey($user->role, $m->key),
                     'name'           => $m->name,
                     'roleScope'      => $m->role_scope,
                     'monthlyPriceKd' => (float) $m->monthly_price_kd,
