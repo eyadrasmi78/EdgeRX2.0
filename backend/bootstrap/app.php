@@ -22,6 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping(10)
             ->onOneServer();
 
+        // Expire past-due module subscriptions and recompute entitlements.
+        $schedule->command('subscriptions:expire')
+            ->daily()
+            ->withoutOverlapping(10)
+            ->onOneServer();
+
         // Daily notification digest — single email summarising the last 24h of activity.
         // Runs at 09:00 UTC (12:00 Kuwait time = noon).
         $schedule->command('notifications:digest')

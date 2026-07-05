@@ -33,13 +33,15 @@ class EnsureModuleActive
             return $next($request);
         }
 
-        if ($this->entitlements->isEntitled($user->id, $moduleKey)) {
+        // $moduleKey is a role-agnostic FEATURE; the service resolves it to the
+        // caller's concrete module key (and passes through if not gated for the role).
+        if ($this->entitlements->isEntitledToFeature($user->id, $moduleKey)) {
             return $next($request);
         }
 
         return response()->json([
             'message'     => 'This feature is a paid module that is not active on your account.',
-            'module'      => $moduleKey,
+            'feature'     => $moduleKey,
             'upgrade_url' => '/modules',
         ], 402);
     }

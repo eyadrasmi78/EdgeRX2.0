@@ -18,6 +18,56 @@ use Illuminate\Support\Facades\DB;
  */
 class EntitlementService
 {
+    /**
+     * A shared route (e.g. /buying-groups) is gated by a role-agnostic FEATURE.
+     * This maps (role, feature) to the concrete module key that role must own.
+     * A feature not listed for a role is NOT gated for it (pass-through).
+     */
+    private const FEATURE_MAP = [
+        'CUSTOMER' => [
+            'buying_groups'      => 'buying_groups',
+            'pricing_agreements' => 'pricing_agreements',
+            'transfers'          => 'transfers',
+            'ai_analytics'       => 'ai_analytics',
+            'order_chat'         => 'order_chat',
+            'market_feed'        => 'market_feed',
+        ],
+        'PHARMACY_MASTER' => [
+            'buying_groups'      => 'master_buying_groups',
+            'pricing_agreements' => 'master_agreements',
+            'transfers'          => 'master_transfers',
+            'ai_analytics'       => 'master_ai_analytics',
+            'chain_management'   => 'chain_management',
+            'order_chat'         => 'order_chat',
+            'market_feed'        => 'market_feed',
+        ],
+        'SUPPLIER' => [
+            'pricing_agreements'   => 'supplier_agreements',
+            'buying_groups'        => 'supplier_buying_groups',
+            'transfer_qc'          => 'transfer_qc',
+            'foreign_partnerships' => 'foreign_partnerships',
+            'ai_analytics'         => 'supplier_ai_analytics',
+        ],
+        'FOREIGN_SUPPLIER' => [
+            'foreign_plan' => 'foreign_plan',
+        ],
+    ];
+
+    public static function moduleKeyForFeature(string $role, string $feature): ?string
+    {
+        return self::FEATURE_MAP[$role][$feature] ?? null;
+    }
+
+    /** Feature-level gate check: resolve the role's module key, then entitlement. */
+    public function isEntitledToFeature(string $accountId, string $feature): bool
+    {
+        $user = User::find($accountId);
+        if (!$user) return false;
+        $key = self::moduleKeyForFeature($user->role, $feature);
+        if (!$key) return true; // feature isn't a gated module for this role
+        return $this->isEntitled($accountId, $key);
+    }
+
     /** Map a user role to the module role_scope(s) that apply to it. */
     public static function scopesForRole(string $role): array
     {

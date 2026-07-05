@@ -104,12 +104,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/admin/pharmacy-groups/{id}',                          [PharmacyGroupsController::class, 'destroy']);
     });
 
-    // Buying Groups (Phase B — Feature 2)
-    Route::get('/buying-groups',                       [BuyingGroupsController::class, 'index']);
-    Route::get('/buying-groups/{id}',                  [BuyingGroupsController::class, 'show']);
-    Route::post('/buying-groups/{id}/commit',          [BuyingGroupsController::class, 'commit']);
-    Route::post('/buying-groups/{id}/accept',          [BuyingGroupsController::class, 'accept']);
-    Route::post('/buying-groups/{id}/decline',         [BuyingGroupsController::class, 'decline']);
+    // Buying Groups (Phase B — Feature 2). Gated behind the buying_groups module
+    // (inert until MODULES_ENFORCED=true). Admin routes below bypass the gate.
+    Route::middleware('module:buying_groups')->group(function () {
+        Route::get('/buying-groups',                   [BuyingGroupsController::class, 'index']);
+        Route::get('/buying-groups/{id}',              [BuyingGroupsController::class, 'show']);
+        Route::post('/buying-groups/{id}/commit',      [BuyingGroupsController::class, 'commit']);
+        Route::post('/buying-groups/{id}/accept',      [BuyingGroupsController::class, 'accept']);
+        Route::post('/buying-groups/{id}/decline',     [BuyingGroupsController::class, 'decline']);
+    });
     Route::middleware('role:ADMIN')->group(function () {
         Route::post('/admin/buying-groups',                           [BuyingGroupsController::class, 'store']);
         Route::post('/admin/buying-groups/{id}/members',              [BuyingGroupsController::class, 'addMember']);
@@ -118,14 +121,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/buying-groups/{id}/dissolve',             [BuyingGroupsController::class, 'adminDissolve']);
     });
 
-    // Pricing Agreements (Phase D2) — BE-39: rate-limited on mutating endpoints
-    Route::get('/pricing-agreements',                       [PricingAgreementsController::class, 'index']);
-    Route::get('/pricing-agreements/{id}',                  [PricingAgreementsController::class, 'show']);
+    // Pricing Agreements (Phase D2) — BE-39: rate-limited on mutating endpoints.
+    // Agreement management is gated behind the pricing_agreements module; /pricing/quote
+    // stays ungated (it's core cart-side price resolution). Inert until enforced.
+    Route::middleware('module:pricing_agreements')->group(function () {
+        Route::get('/pricing-agreements',                       [PricingAgreementsController::class, 'index']);
+        Route::get('/pricing-agreements/{id}',                  [PricingAgreementsController::class, 'show']);
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::post('/pricing-agreements',                      [PricingAgreementsController::class, 'store']);
+            Route::post('/pricing-agreements/{id}/send',            [PricingAgreementsController::class, 'sendToCustomer']);
+            Route::post('/pricing-agreements/{id}/sign',            [PricingAgreementsController::class, 'customerSign']);
+            Route::post('/pricing-agreements/{id}/terminate',       [PricingAgreementsController::class, 'terminate']);
+        });
+    });
     Route::middleware('throttle:60,1')->group(function () {
-        Route::post('/pricing-agreements',                      [PricingAgreementsController::class, 'store']);
-        Route::post('/pricing-agreements/{id}/send',            [PricingAgreementsController::class, 'sendToCustomer']);
-        Route::post('/pricing-agreements/{id}/sign',            [PricingAgreementsController::class, 'customerSign']);
-        Route::post('/pricing-agreements/{id}/terminate',       [PricingAgreementsController::class, 'terminate']);
         Route::post('/pricing/quote',                           [PricingAgreementsController::class, 'quote']);
     });
     Route::middleware('role:ADMIN')->group(function () {
