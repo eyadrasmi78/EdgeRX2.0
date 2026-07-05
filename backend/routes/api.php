@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\PricingAgreementsController;
 use App\Http\Controllers\Api\ProductsController;
 use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UsersController;
+use App\Http\Controllers\Api\SubscriptionsController;
+use App\Http\Controllers\Api\PromoCodesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -76,6 +78,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/partnerships',           [PartnershipsController::class, 'index']);
     Route::post('/partnerships',          [PartnershipsController::class, 'store']);
     Route::patch('/partnerships/{id}',    [PartnershipsController::class, 'update']);
+
+    // Modules & subscriptions (Phase 2) — catalogue + purchase/activate
+    Route::get('/modules',                        [SubscriptionsController::class, 'index']);
+    Route::post('/subscriptions',                 [SubscriptionsController::class, 'store']);
+    Route::post('/subscriptions/{id}/cancel',     [SubscriptionsController::class, 'cancel']);
+
+    // Promo codes (Phase 3) — customer redeem; admin generate/list
+    Route::post('/promo-codes/redeem',            [PromoCodesController::class, 'redeem']);
+    Route::middleware('role:ADMIN')->group(function () {
+        Route::get('/admin/promo-codes',          [PromoCodesController::class, 'index']);
+        Route::post('/admin/promo-codes',         [PromoCodesController::class, 'store']);
+    });
 
     // Pharmacy Master groups (Phase A — Feature 1)
     Route::get('/me/pharmacies', [PharmacyGroupsController::class, 'mine']);
