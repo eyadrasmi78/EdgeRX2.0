@@ -35,6 +35,7 @@ class DemoDataSeeder extends Seeder
             $this->seedFeed();
             $this->seedBuyingGroups();
             $this->seedAgreementsAndTransfers();
+            $this->seedModuleScenarios();
         });
     }
 
@@ -971,6 +972,84 @@ class DemoDataSeeder extends Seeder
                 'expiry_date' => now()->addMonths(18)->toDateString(),
                 'gs1_barcode' => '628087654321', 'qc_status' => 'PENDING',
             ]
+        );
+    }
+
+    /* ──────────── MODULE OWNERSHIP SCENARIOS (for the modular plan) ────────────
+     * Seeds accounts in a variety of module states so the store, gating, promo
+     * codes and payments can be demoed/tested. Idempotent. Requires the module
+     * catalogue — seed it first if it isn't there.
+     */
+    private function seedModuleScenarios(): void
+    {
+        // Ensure the catalogue exists (idempotent).
+        (new ModuleCatalogueSeeder())->run();
+
+        // ACTIVE subscriptions — [account, module, billing period].
+        $active = [
+            // 1 paid module — Al-Salam Pharmacy
+            ['bg_c1', 'buying_groups', 'MONTHLY'],
+            // Power customer — City General has 3 modules
+            ['3', 'buying_groups', 'YEARLY'],
+            ['3', 'pricing_agreements', 'YEARLY'],
+            ['3', 'ai_analytics', 'MONTHLY'],
+            // Supplier core + 2 modules — MediGlobal
+            ['2', 'supplier_core', 'YEARLY'],
+            ['2', 'supplier_agreements', 'MONTHLY'],
+            ['2', 'transfer_qc', 'MONTHLY'],
+            // Supplier core only — Gulf Health Agents
+            ['5', 'supplier_core', 'MONTHLY'],
+            // Foreign flat plan — BioTech Germany
+            ['4', 'foreign_plan', 'YEARLY'],
+            // Pharmacy Master — chain base + one chain-wide module
+            ['m1', 'chain_management', 'MONTHLY'],
+            ['m1', 'master_buying_groups', 'MONTHLY'],
+        ];
+        foreach ($active as [$account, $key, $period]) {
+            $this->addSubscription($account, $key, $period, 'ACTIVE');
+        }
+
+        // PENDING subscription (mid-payment, awaiting checkout.com) — Sabah Hospital
+        $this->addSubscription('bg_c3', 'transfers', 'MONTHLY', 'PENDING');
+
+        // Promo-comped module — PharmaZone 1 gets Order Chat free via a redeemed code
+        $promo = \App\Models\PromoCode::updateOrCreate(['code' => 'EDGE-DEMOCHAT'], [
+            'code' => 'EDGE-DEMOCHAT', 'customer_id' => 'pz1',
+            'module_keys' => ['order_chat', 'market_feed'], 'waiver_days' => null,
+            'max_redemptions' => 1, 'redeemed_count' => 1, 'created_by' => '1',
+        ]);
+        \App\Models\PromoCodeRedemption::updateOrCreate(
+            ['promo_code_id' => $promo->id, 'account_id' => 'pz1'],
+            ['redeemed_at' => now()],
+        );
+
+        // Recompute entitlements for every demo account so free-core-only accounts
+        // (Mishref, PharmaZone 2–4, etc.) and the above all materialise correctly.
+        $accounts = ['1', '2', '3', '4', '5', 'bg_c1', 'bg_c2', 'bg_c3', 'm1', 'pz1', 'pz2', 'pz3', 'pz4'];
+        $svc = app(\App\Services\EntitlementService::class);
+        foreach ($accounts as $a) {
+            $svc->recompute($a);
+        }
+    }
+
+    /** Create an idempotent demo subscription with a billing-model-correct price. */
+    private function addSubscription(string $accountId, string $moduleKey, string $period, string $status): void
+    {
+        $module = \App\Models\Module::find($moduleKey);
+        if (!$module) return;
+        $mult   = ['MONTHLY' => 1, 'QUARTERLY' => 2.5, 'YEARLY' => $module->role_scope === 'FOREIGN' ? 10 : 8.4][$period];
+        $months = ['MONTHLY' => 1, 'QUARTERLY' => 3, 'YEARLY' => 12][$period];
+        $price  = round(((float) $module->monthly_price_kd) * $mult, 2);
+        \App\Models\Subscription::updateOrCreate(
+            ['account_id' => $accountId, 'module_key' => $moduleKey],
+            [
+                'billing_period'       => $period,
+                'status'               => $status,
+                'unit_price_kd'        => $price,
+                'current_period_start' => $status === 'ACTIVE' ? now() : null,
+                'current_period_end'   => $status === 'ACTIVE' ? now()->addMonths($months) : null,
+                'auto_renew'           => true,
+            ],
         );
     }
 }
