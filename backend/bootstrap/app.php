@@ -50,7 +50,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Aliases for use in routes/policies
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'role'   => \App\Http\Middleware\EnsureUserHasRole::class,
+            'module' => \App\Http\Middleware\EnsureModuleActive::class,
         ]);
 
         // Security headers on every response (web + api)
