@@ -12,6 +12,7 @@ import { CustomerRequests } from './components/CustomerRequests';
 import { BuyingGroups } from './components/BuyingGroups';
 import { Transfers } from './components/Transfers';
 import { PricingAgreements } from './components/PricingAgreements';
+import { ModuleStore } from './components/ModuleStore';
 import { DataService } from './services/mockData';
 import { subscribeUnauthorized } from './services/api';
 import { setAiErrorHandler } from './services/aiService';
@@ -19,7 +20,7 @@ import { registerNotifier } from './services/notify';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { User, Product, Order, Notification, CartItem, UserRole, OrderStatus, RegistrationStatus } from './types';
 import { useLanguage } from './contexts/LanguageContext';
-import { LogOut, ShoppingCart, User as UserIcon, Bell, Home, Globe, LayoutGrid, ShoppingBag, Clock, Settings, CheckCircle, X, Clipboard, ExternalLink, Activity, BarChart3, Users, ShieldCheck, ArrowLeftRight, FileSignature } from 'lucide-react';
+import { LogOut, ShoppingCart, User as UserIcon, Bell, Home, Globe, LayoutGrid, ShoppingBag, Clock, Settings, CheckCircle, X, Clipboard, ExternalLink, Activity, BarChart3, Users, ShieldCheck, ArrowLeftRight, FileSignature, Sparkles } from 'lucide-react';
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -354,6 +355,7 @@ export function App() {
       // Phase D — Transfers + Agreements available to customers and masters.
       items.push({ id: 'transfers', label: t('nav_transfers'), icon: ArrowLeftRight });
       items.push({ id: 'agreements', label: t('nav_agreements'), icon: FileSignature });
+      items.push({ id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles });
       return items;
     }
 
@@ -366,6 +368,7 @@ export function App() {
         { id: 'agreements', label: t('nav_agreements'), icon: FileSignature },
         { id: 'supplier_reports', label: t('nav_reports'), icon: BarChart3 },
         { id: 'supplier_team', label: t('manage_team'), icon: Users },
+        { id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles },
       ];
     }
 
@@ -375,6 +378,7 @@ export function App() {
         { id: 'foreign_dashboard', label: t('nav_dashboard'), icon: LayoutGrid },
         { id: 'foreign_reports', label: t('nav_reports'), icon: BarChart3 },
         { id: 'foreign_team', label: t('manage_team'), icon: Users },
+        { id: 'modules', label: t('nav_modules') || 'Modules', icon: Sparkles },
       ];
     }
 
@@ -395,6 +399,11 @@ export function App() {
 
     if (activeView === 'home') {
         return <Dashboard currentUser={user} orders={orders} products={products} />;
+    }
+
+    // Modular subscriptions — module store + redeem (all roles that can buy modules)
+    if (activeView === 'modules') {
+        return <ModuleStore currentUser={user} />;
     }
 
     // Customer + Pharmacy Master share the same screens (master sees aggregate from all child pharmacies)

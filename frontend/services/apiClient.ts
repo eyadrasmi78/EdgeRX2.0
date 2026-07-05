@@ -20,6 +20,7 @@ import {
   BuyingGroup,
   TransferRequest, TransferDiscoveryMode,
   PricingAgreement, PricingQuote,
+  ModuleInfo,
 } from '../types';
 
 /* ────────────────────────────── caches ────────────────────────────── */
@@ -33,6 +34,9 @@ let _notifications: InAppNotification[] = [];
 let _currentUser: User | null = null;
 // FE-10: serialize debounced cart writes so they land in call order (last write wins).
 let _cartSaveChain: Promise<void> = Promise.resolve();
+// Modular subscriptions: the account's module catalogue + live entitlement state.
+let _modules: ModuleInfo[] = [];
+let _modulesEnforced = false;
 
 /* ── race-token guards (S3) ──────────────────────────────────────────
  * Each cache slice has a monotonic generation counter. When two mutations
@@ -114,10 +118,19 @@ async function refreshChats(orderIds: string[]): Promise<void> {
   }
 }
 
+async function refreshModules(): Promise<void> {
+  try {
+    const data = await api.get<{ enforced: boolean; modules: ModuleInfo[] }>('/modules');
+    _modules = data.modules ?? [];
+    _modulesEnforced = !!data.enforced;
+  } catch (e) { logSliceError('modules', e); }
+}
+
 function clearAll() {
   _users = []; _products = []; _orders = [];
   _feed = []; _partnerships = []; _chats = [];
   _notifications = []; _currentUser = null;
+  _modules = []; _modulesEnforced = false;
 }
 
 /* ────────────────────────────── DataService surface ────────────────────────────── */
@@ -136,6 +149,7 @@ export const DataService = {
         refreshPartnerships(),
         refreshUsers(),
         refreshNotifications(),
+        refreshModules(),
       ]);
       // Always include the current user in the users cache for non-admin views
       if (!_users.find(u => u.id === session.user!.id)) _users = [session.user, ..._users];
@@ -611,5 +625,30 @@ export const DataService = {
   quotePrice: async (productId: string, quantity: number, pharmacyId?: string): Promise<PricingQuote | null> => {
     try { return await api.post<PricingQuote>('/pricing/quote', { productId, quantity, pharmacyId }); }
     catch (e) { logSliceError('quote', e); return null; }
+  },
+
+  /* ── MODULES / SUBSCRIPTIONS ─────────────────────────── */
+  getModules: (): ModuleInfo[] => _modules,
+  modulesEnforced: (): boolean => _modulesEnforced,
+  /** True if a module is active for this account. When enforcement is off,
+   *  nothing is gated, so this returns true for everything. */
+  isModuleActive: (key: string): boolean => {
+    if (!_modulesEnforced) return true;
+    const m = _modules.find(x => x.key === key);
+    return m ? m.active : true;
+  },
+  refreshModules: async (): Promise<void> => { await refreshModules(); },
+  buyModule: async (moduleKey: string, billingPeriod: 'MONTHLY' | 'QUARTERLY' | 'YEARLY'): Promise<{ success: boolean; message?: string }> => {
+    try { await api.post('/subscriptions', { module_key: moduleKey, billing_period: billingPeriod }); await refreshModules(); return { success: true }; }
+    catch (e: any) { return { success: false, message: e?.data?.message || 'Could not activate module' }; }
+  },
+  redeemPromoCode: async (code: string): Promise<{ success: boolean; message?: string; activated?: string[] }> => {
+    try { const r = await api.post<{ activated: string[] }>('/promo-codes/redeem', { code }); await refreshModules(); return { success: true, activated: r.activated }; }
+    catch (e: any) { return { success: false, message: e?.data?.message || 'Invalid code' }; }
+  },
+  /** Admin — generate a fee-waiver code for 1–3 modules. */
+  generatePromoCode: async (payload: { customer_id?: string; module_keys: string[]; waiver_days?: number; max_redemptions?: number; expires_at?: string }): Promise<{ success: boolean; code?: string; message?: string }> => {
+    try { const r = await api.post<{ code: string }>('/admin/promo-codes', payload); return { success: true, code: r.code }; }
+    catch (e: any) { return { success: false, message: e?.data?.message || 'Could not generate code' }; }
   },
 };

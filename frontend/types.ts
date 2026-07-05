@@ -474,3 +474,15 @@ export interface PricingQuote {
   warning?: string | null;
   splitRecommended?: number | null;
 }
+
+/** A purchasable module + this account's live entitlement state (GET /modules). */
+export interface ModuleInfo {
+  key: string;
+  name: string;
+  roleScope: string;
+  monthlyPriceKd: number;
+  isCore: boolean;
+  active: boolean;
+  billingPeriod?: string | null;
+  renewsOn?: string | null;
+}
