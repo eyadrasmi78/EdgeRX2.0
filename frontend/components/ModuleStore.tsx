@@ -3,7 +3,7 @@ import { ModuleInfo, User } from '../types';
 import { DataService } from '../services/mockData';
 import { useLanguage } from '../contexts/LanguageContext';
 import { notify } from '../services/notify';
-import { Check, Sparkles, Ticket, Loader2, Lock } from 'lucide-react';
+import { Check, Sparkles, Ticket, Loader2, Lock, Gift } from 'lucide-react';
 
 interface ModuleStoreProps {
   currentUser: User;
@@ -60,6 +60,18 @@ export const ModuleStore: React.FC<ModuleStoreProps> = ({ currentUser }) => {
         <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3"><Sparkles className="text-teal-600" /> {t('modules_title') || 'Modules & Plan'}</h1>
         <p className="text-gray-500 mt-1">{t('modules_subtitle') || 'Your core is free forever. Add modules any time — monthly, quarterly or yearly.'}</p>
       </div>
+
+      {/* Launch grace banner */}
+      {DataService.modulesGraceUntil() && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
+          <Gift size={18} className="text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-900">
+            <span className="font-bold">Launch offer:</span> all your modules are free during the launch period —
+            through <span className="font-bold">{DataService.modulesGraceUntil()}</span>. After that, keep the ones
+            you want by activating a plan below.
+          </p>
+        </div>
+      )}
 
       {/* Redeem code */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-8 flex flex-col sm:flex-row sm:items-center gap-3">

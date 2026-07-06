@@ -37,6 +37,7 @@ let _cartSaveChain: Promise<void> = Promise.resolve();
 // Modular subscriptions: the account's module catalogue + live entitlement state.
 let _modules: ModuleInfo[] = [];
 let _modulesEnforced = false;
+let _modulesGraceUntil: string | null = null;
 
 /* ── race-token guards (S3) ──────────────────────────────────────────
  * Each cache slice has a monotonic generation counter. When two mutations
@@ -120,9 +121,10 @@ async function refreshChats(orderIds: string[]): Promise<void> {
 
 async function refreshModules(): Promise<void> {
   try {
-    const data = await api.get<{ enforced: boolean; modules: ModuleInfo[] }>('/modules');
+    const data = await api.get<{ enforced: boolean; graceUntil: string | null; modules: ModuleInfo[] }>('/modules');
     _modules = data.modules ?? [];
     _modulesEnforced = !!data.enforced;
+    _modulesGraceUntil = data.graceUntil ?? null;
   } catch (e) { logSliceError('modules', e); }
 }
 
@@ -130,7 +132,7 @@ function clearAll() {
   _users = []; _products = []; _orders = [];
   _feed = []; _partnerships = []; _chats = [];
   _notifications = []; _currentUser = null;
-  _modules = []; _modulesEnforced = false;
+  _modules = []; _modulesEnforced = false; _modulesGraceUntil = null;
 }
 
 /* ────────────────────────────── DataService surface ────────────────────────────── */
@@ -630,6 +632,8 @@ export const DataService = {
   /* ── MODULES / SUBSCRIPTIONS ─────────────────────────── */
   getModules: (): ModuleInfo[] => _modules,
   modulesEnforced: (): boolean => _modulesEnforced,
+  /** ISO date the launch grace window ends, or null if the account has no grace. */
+  modulesGraceUntil: (): string | null => _modulesGraceUntil,
   /** True if a module is active for this account. When enforcement is off,
    *  nothing is gated, so this returns true for everything. */
   isModuleActive: (key: string): boolean => {

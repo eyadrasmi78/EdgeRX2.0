@@ -23,7 +23,7 @@ class User extends Authenticatable
      * UsersController + AuthController gates which fields are accepted.
      */
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'role', 'status',
+        'name', 'email', 'password', 'phone', 'role', 'status', 'module_grace_until',
     ];
 
     protected $hidden = [
@@ -35,6 +35,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'module_grace_until' => 'datetime',
         ];
     }
 

@@ -24,9 +24,13 @@ class SubscriptionsController extends Controller
         $subs = Subscription::where('account_id', $user->id)->where('status', 'ACTIVE')
             ->get()->keyBy('module_key');
 
+        $graceUntil = ($user->module_grace_until && now()->lessThan($user->module_grace_until))
+            ? $user->module_grace_until->toDateString() : null;
+
         return response()->json([
-            'enforced' => (bool) config('modules.enforced'),
-            'modules'  => $modules->map(function (Module $m) use ($user, $subs) {
+            'enforced'   => (bool) config('modules.enforced'),
+            'graceUntil' => $graceUntil,
+            'modules'    => $modules->map(function (Module $m) use ($user, $subs) {
                 return [
                     'key'            => $m->key,
                     'feature'        => EntitlementService::featureForModuleKey($user->role, $m->key),

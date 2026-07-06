@@ -132,6 +132,17 @@ class EntitlementService
             }
         }
 
+        // 4. GRACE — during the transition window, every module in the account's role
+        //    is free (so nothing an existing user relies on is cut off). New signups
+        //    have no grace date, so this never applies to them.
+        if ($scopes && $user->module_grace_until && now()->lessThan($user->module_grace_until)) {
+            Module::whereIn('role_scope', $scopes)->pluck('key')->each(function ($key) use (&$desired, $user) {
+                if (!isset($desired[$key])) {
+                    $desired[$key] = ['source' => 'GRACE', 'expires_at' => $user->module_grace_until];
+                }
+            });
+        }
+
         DB::transaction(function () use ($accountId, $desired) {
             AccountModuleEntitlement::where('account_id', $accountId)
                 ->whereNotIn('module_key', array_keys($desired) ?: ['__none__'])
