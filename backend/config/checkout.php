@@ -7,9 +7,10 @@ return [
     | purchase creates a PENDING subscription + a checkout.com Payment Link and
     | only activates on the payment webhook.
     */
-    'secret'         => env('CHECKOUT_SECRET_KEY'),      // sk_... (or sk_sbox_...)
-    'webhook_secret' => env('CHECKOUT_WEBHOOK_SECRET'),  // signing key for Cko-Signature
-    'environment'    => env('CHECKOUT_ENV', 'sandbox'),  // sandbox | live
+    'secret'             => env('CHECKOUT_SECRET_KEY'),      // sk_... (or sk_sbox_...)
+    'webhook_secret'     => env('CHECKOUT_WEBHOOK_SECRET'),  // signature key for Cko-Signature
+    'processing_channel' => env('CHECKOUT_PROCESSING_CHANNEL_ID'), // pc_... (required by CKO)
+    'environment'        => env('CHECKOUT_ENV', 'sandbox'),  // sandbox | live
 
     'base_url' => env('CHECKOUT_ENV', 'sandbox') === 'live'
         ? 'https://api.checkout.com'

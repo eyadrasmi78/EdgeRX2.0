@@ -43,6 +43,9 @@ class CheckoutService
             'return_url'  => config('checkout.return_url'),
             'metadata'    => ['subscription_id' => (string) $sub->id, 'account_id' => (string) $user->id],
         ];
+        if ($channel = config('checkout.processing_channel')) {
+            $payload['processing_channel_id'] = $channel;
+        }
 
         try {
             $res = Http::withToken(config('checkout.secret'))
